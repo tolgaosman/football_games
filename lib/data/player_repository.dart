@@ -39,9 +39,12 @@ class SearchResult {
 /// the [rowFactor] and [columnFactor]. Keeping this abstract lets the data
 /// source be swapped (API, local JSON, hybrid) without touching the UI.
 abstract class PlayerRepository {
+  /// Searches for players matching [query] who satisfy both factors. Any player
+  /// whose id is in [excludeIds] (already used this match) is filtered out.
   Future<SearchResult> searchValid({
     required String query,
     required Factor rowFactor,
     required Factor columnFactor,
+    Set<String> excludeIds,
   });
 }

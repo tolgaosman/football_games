@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flyball/data/player.dart';
+import 'package:flyball/data/player_attributes.dart';
+import 'package:flyball/game/xox/board_solver.dart';
 import 'package:flyball/game/xox/factor.dart';
 import 'package:flyball/game/xox/factor_pool.dart';
 
@@ -49,6 +51,18 @@ void main() {
         final colsHaveIntl = board.columns.any((f) => f.isInternational);
         expect(rowsHaveIntl && colsHaveIntl, isFalse,
             reason: 'international on both axes for seed $seed');
+      }
+    });
+
+    test('every generated board is fully solvable against the corpus', () {
+      final corpus = PlayerAttributes.all;
+      for (var seed = 0; seed < 200; seed++) {
+        final board = FactorPool.generateBoard(Random(seed), corpus);
+        expect(
+          BoardSolver.boardIsSolvable(board.rows, board.columns, corpus),
+          isTrue,
+          reason: 'unsolvable cell for seed $seed',
+        );
       }
     });
   });

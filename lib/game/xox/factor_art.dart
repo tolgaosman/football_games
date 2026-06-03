@@ -27,23 +27,24 @@ class FactorArtResolver {
   static FactorArt forFactor(Factor factor) {
     switch (factor.type) {
       case FactorType.nationality:
+        // Flags stay on flagcdn.com — it is CORS-open so it works on web too.
         final iso = _countryIso2[factor.value];
         if (iso == null) return FactorArt.none;
         return FactorArt(networkUrl: 'https://flagcdn.com/w160/$iso.png');
 
       case FactorType.playedLeague:
-        final url = _leagueBadgeUrl[factor.value];
-        return url == null ? FactorArt.none : FactorArt(networkUrl: url);
+        final asset = _leagueLogoAsset[factor.value];
+        return asset == null ? FactorArt.none : FactorArt(assetPath: asset);
 
       case FactorType.wonLeague:
-        final url = _leagueBadgeUrl[factor.value];
-        return url == null
+        final asset = _leagueLogoAsset[factor.value];
+        return asset == null
             ? FactorArt.none
-            : FactorArt(networkUrl: url, isWonLeague: true);
+            : FactorArt(assetPath: asset, isWonLeague: true);
 
       case FactorType.team:
-        final url = _teamBadgeUrl[factor.value];
-        return url == null ? FactorArt.none : FactorArt(networkUrl: url);
+        final asset = _teamLogoAsset[factor.value];
+        return asset == null ? FactorArt.none : FactorArt(assetPath: asset);
 
       case FactorType.wonInternational:
         final asset = _trophyAsset[factor.value];
@@ -58,64 +59,57 @@ class FactorArtResolver {
     'Copa America': 'assets/images/copaAmerica.png',
   };
 
-  /// League badge URLs (TheSportsDB CDN), keyed by canonical league name.
-  static const Map<String, String> _leagueBadgeUrl = {
-    'Premier League':
-        'https://r2.thesportsdb.com/images/media/league/badge/gasy9d1737743125.png',
-    'La Liga':
-        'https://r2.thesportsdb.com/images/media/league/badge/ja4it51687628717.png',
-    'Serie A':
-        'https://r2.thesportsdb.com/images/media/league/badge/67q3q21679951383.png',
-    'Bundesliga':
-        'https://r2.thesportsdb.com/images/media/league/badge/teqh1b1679952008.png',
-    'Ligue 1':
-        'https://r2.thesportsdb.com/images/media/league/badge/9f7z9d1742983155.png',
-    'Trendyol Süper Lig':
-        'https://r2.thesportsdb.com/images/media/league/badge/ifm3zc1779990699.png',
+  /// League logo asset paths (user-supplied), keyed by canonical league name.
+  /// Files live in `assets/images/logos/`.
+  static const Map<String, String> _leagueLogoAsset = {
+    'Premier League': 'assets/images/logos/premierLeague.png',
+    'La Liga': 'assets/images/logos/laLiga.png',
+    'Serie A': 'assets/images/logos/serieA.png',
+    'Bundesliga': 'assets/images/logos/bundesliga.png',
+    'Ligue 1': 'assets/images/logos/ligue1.png',
+    'Trendyol Süper Lig': 'assets/images/logos/superLig.png',
   };
 
-  /// Club badge URLs (TheSportsDB CDN), keyed by canonical club name.
-  static const Map<String, String> _teamBadgeUrl = {
-    'Arsenal':
-        'https://r2.thesportsdb.com/images/media/team/badge/uyhbfe1612467038.png',
-    'Manchester City':
-        'https://r2.thesportsdb.com/images/media/team/badge/vwpvry1467462651.png',
-    'Liverpool':
-        'https://r2.thesportsdb.com/images/media/team/badge/kfaher1737969724.png',
-    'Chelsea':
-        'https://r2.thesportsdb.com/images/media/team/badge/yvwvtu1448813215.png',
-    'Manchester United':
-        'https://r2.thesportsdb.com/images/media/team/badge/xzqdr11517660252.png',
-    'Real Madrid':
-        'https://r2.thesportsdb.com/images/media/team/badge/vwvwrw1473502969.png',
-    'Barcelona':
-        'https://r2.thesportsdb.com/images/media/team/badge/wq9sir1639406443.png',
-    'Atletico Madrid':
-        'https://r2.thesportsdb.com/images/media/team/badge/0ulh3q1719984315.png',
-    'Bayern Munich':
-        'https://r2.thesportsdb.com/images/media/team/badge/01ogkh1716960412.png',
-    'Borussia Dortmund':
-        'https://r2.thesportsdb.com/images/media/team/badge/tqo8ge1716960353.png',
-    'Juventus':
-        'https://r2.thesportsdb.com/images/media/team/badge/uxf0gr1742983727.png',
-    'AC Milan':
-        'https://r2.thesportsdb.com/images/media/team/badge/wvspur1448806617.png',
-    'Inter Milan':
-        'https://r2.thesportsdb.com/images/media/team/badge/ryhu6d1617113103.png',
-    'Napoli':
-        'https://r2.thesportsdb.com/images/media/team/badge/l8qyxv1742982541.png',
-    'PSG':
-        'https://r2.thesportsdb.com/images/media/team/badge/rwqrrq1473504808.png',
-    'Marseille':
-        'https://r2.thesportsdb.com/images/media/team/badge/c6bazh1779212287.png',
-    'Lyon':
-        'https://r2.thesportsdb.com/images/media/team/badge/blk9771656932845.png',
-    'Galatasaray':
-        'https://r2.thesportsdb.com/images/media/team/badge/io7jk21767941298.png',
-    'Fenerbahce':
-        'https://r2.thesportsdb.com/images/media/team/badge/twxxvs1448199691.png',
-    'Besiktas':
-        'https://r2.thesportsdb.com/images/media/team/badge/svo05k1776827439.png',
+  /// Club logo asset paths (user-supplied), keyed by canonical club name.
+  /// Files live in `assets/images/logos/` using camelCase filenames.
+  static const Map<String, String> _teamLogoAsset = {
+    'Arsenal': 'assets/images/logos/arsenal.png',
+    'Manchester City': 'assets/images/logos/manchesterCity.png',
+    'Liverpool': 'assets/images/logos/liverpool.png',
+    'Chelsea': 'assets/images/logos/chelsea.png',
+    'Manchester United': 'assets/images/logos/manchesterUnited.png',
+    'Real Madrid': 'assets/images/logos/realMadrid.png',
+    'Barcelona': 'assets/images/logos/barcelona.png',
+    'Atletico Madrid': 'assets/images/logos/atleticoMadrid.png',
+    'Bayern Munich': 'assets/images/logos/bayernMunich.png',
+    'Borussia Dortmund': 'assets/images/logos/borussiaDortmund.png',
+    'Juventus': 'assets/images/logos/juventus.png',
+    'AC Milan': 'assets/images/logos/acMilan.png',
+    'Inter Milan': 'assets/images/logos/interMilan.png',
+    'Napoli': 'assets/images/logos/napoli.png',
+    'PSG': 'assets/images/logos/psg.png',
+    'Marseille': 'assets/images/logos/marseille.png',
+    'Lyon': 'assets/images/logos/lyon.png',
+    'Galatasaray': 'assets/images/logos/galatasaray.png',
+    'Fenerbahce': 'assets/images/logos/fenerbahce.png',
+    'Besiktas': 'assets/images/logos/besiktas.png',
+    'Tottenham Hotspur': 'assets/images/logos/tottenhamHotspur.png',
+    'Newcastle United': 'assets/images/logos/newcastleUnited.png',
+    'Aston Villa': 'assets/images/logos/astonVilla.png',
+    'Everton': 'assets/images/logos/everton.png',
+    'West Ham United': 'assets/images/logos/westHamUnited.png',
+    'Sevilla': 'assets/images/logos/sevilla.png',
+    'Valencia': 'assets/images/logos/valencia.png',
+    'Bayer Leverkusen': 'assets/images/logos/bayerLeverkusen.png',
+    'Schalke 04': 'assets/images/logos/schalke04.png',
+    'Werder Bremen': 'assets/images/logos/werderBremen.png',
+    'Roma': 'assets/images/logos/roma.png',
+    'Lazio': 'assets/images/logos/lazio.png',
+    'Fiorentina': 'assets/images/logos/fiorentina.png',
+    'Atalanta': 'assets/images/logos/atalanta.png',
+    'Lille': 'assets/images/logos/lille.png',
+    'Trabzonspor': 'assets/images/logos/trabzonspor.png',
+    'Başakşehir': 'assets/images/logos/basaksehir.png',
   };
 
   /// Country → ISO-3166 alpha-2 code for flagcdn.com. UK home nations use the

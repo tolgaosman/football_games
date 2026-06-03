@@ -1,5 +1,8 @@
 import 'dart:math';
 
+import '../../data/player.dart';
+import '../../data/player_attributes.dart';
+import 'board_solver.dart';
 import 'factor.dart';
 
 /// The catalogue of all possible XOX factors plus the board generator.
@@ -27,28 +30,62 @@ class FactorPool {
     'Euros',
   ];
 
-  /// ~20 major clubs drawn from the six leagues above.
+  /// Major clubs drawn from the six leagues above.
   static const List<String> teams = [
+    // Premier League (12 teams)
     'Arsenal',
-    'Manchester City',
-    'Liverpool',
+    'Aston Villa',
+    'Brighton',
     'Chelsea',
+    'Crystal Palace',
+    'Liverpool',
+    'Manchester City',
     'Manchester United',
+    'Newcastle United',
+    'Nottingham Forest',
+    'Tottenham Hotspur',
+    'West Ham United',
+
+    // La Liga (7 teams)
     'Real Madrid',
     'Barcelona',
     'Atletico Madrid',
+    'Athletic Bilbao',
+    'Real Betis',
+    'Sevilla',
+    'Villarreal',
+
+    // Bundesliga (6 teams)
     'Bayern Munich',
     'Borussia Dortmund',
-    'Juventus',
+    'Bayer Leverkusen',
+    'Eintracht Frankfurt',
+    'RB Leipzig',
+    'VfL Wolfsburg',
+
+    // Serie A (8 teams)
     'AC Milan',
     'Inter Milan',
+    'Juventus',
     'Napoli',
+    'Atalanta',
+    'Roma',
+    'Lazio',
+    'Fiorentina',
+
+    // Ligue 1 (5 teams)
     'PSG',
-    'Marseille',
     'Lyon',
+    'Lille',
+    'Marseille',
+    'Monaco',
+
+    // Trendyol Süper Lig (5 teams)
     'Galatasaray',
     'Fenerbahce',
     'Besiktas',
+    'Trabzonspor',
+    'Başakşehir',
   ];
 
   /// The exact 75 nationalities supplied for use as factors.
@@ -111,19 +148,24 @@ class FactorPool {
     return factors;
   }
 
-  /// Picks 3 row + 3 column factors, all six guaranteed unique, satisfying the
-  /// axis-exclusivity rules (see [_axesAreValid]).
+  /// Picks 3 row + 3 column factors that are all six unique, obey the
+  /// axis-exclusivity rules ([_axesAreValid]), AND form a fully solvable board
+  /// (every one of the 9 cells has at least one player in [players] satisfying
+  /// both its row and column factor).
   ///
-  /// Returns a record of (rows, columns), each a list of length 3.
+  /// [players] defaults to the curated [PlayerAttributes] corpus; tests can
+  /// inject a fixed list. Returns a record of (rows, columns), length 3 each.
   static ({List<Factor> rows, List<Factor> columns}) generateBoard([
     Random? random,
+    List<Player>? players,
   ]) {
     final rng = random ?? Random();
+    final corpus = players ?? PlayerAttributes.all;
 
-    // Reject-sample whole draws until the row/column split obeys the rules.
-    // With a 100+ factor pool a valid draw is found almost immediately; the cap
-    // guards against pathological cases.
-    const maxAttempts = 200;
+    // Reject-sample whole draws until the split obeys the axis rules and the
+    // board is fully solvable against the corpus. With a large factor pool a
+    // valid draw is found quickly; the cap guards against pathological cases.
+    const maxAttempts = 2000;
     List<Factor>? rows;
     List<Factor>? columns;
 
@@ -131,21 +173,75 @@ class FactorPool {
       final chosen = _pickSixUnique(rng);
       final r = chosen.sublist(0, 3);
       final c = chosen.sublist(3, 6);
-      if (_axesAreValid(r, c)) {
+      if (_axesAreValid(r, c) &&
+          BoardSolver.boardIsSolvable(r, c, corpus)) {
         rows = r;
         columns = c;
         break;
       }
     }
 
-    // Fallback (should never trigger): use the last valid-or-not draw.
+    // Fallback: build a guaranteed-solvable board around a single random player
+    // so we never return a broken board (e.g. an extremely small corpus).
     if (rows == null || columns == null) {
-      final chosen = _pickSixUnique(rng);
-      rows = chosen.sublist(0, 3);
-      columns = chosen.sublist(3, 6);
+      final fallback = _solvableBoardFor(rng, corpus);
+      rows = fallback.rows;
+      columns = fallback.columns;
     }
 
     return (rows: rows, columns: columns);
+  }
+
+  /// Builds a definitely-solvable board by anchoring on one player: every
+  /// chosen factor is one that player satisfies, so all 9 cells are solvable
+  /// (that player answers each). Used only as a safety fallback.
+  static ({List<Factor> rows, List<Factor> columns}) _solvableBoardFor(
+    Random rng,
+    List<Player> corpus,
+  ) {
+    final pool = corpus.isEmpty ? PlayerAttributes.all : corpus;
+
+    // Filter players who satisfy at least 6 factors from the current pool
+    final validAnchors = pool.where((player) {
+      final count = allFactors().where((f) => f.matches(player)).length;
+      return count >= 6;
+    }).toList()..shuffle(rng);
+
+    for (final anchor in validAnchors) {
+      final satisfied = allFactors().where((f) => f.matches(anchor)).toList();
+      // Try to find 6 unique factors from the satisfied list that can form a valid axis split
+      for (var attempt = 0; attempt < 50; attempt++) {
+        satisfied.shuffle(rng);
+        final chosen = satisfied.sublist(0, 6);
+        // Try permutations of these 6 to see if any split satisfies _axesAreValid
+        for (var perm = 0; perm < 20; perm++) {
+          chosen.shuffle(rng);
+          final r = chosen.sublist(0, 3);
+          final c = chosen.sublist(3, 6);
+          if (_axesAreValid(r, c)) {
+            return (rows: r, columns: c);
+          }
+        }
+      }
+    }
+
+    // Absolute fallback: pick any 6 unique factors and shuffle until valid
+    final chosen = _pickSixUnique(rng);
+    for (var i = 0; i < 100; i++) {
+      chosen.shuffle(rng);
+      final r = chosen.sublist(0, 3);
+      final c = chosen.sublist(3, 6);
+      if (_axesAreValid(r, c)) {
+        return (rows: r, columns: c);
+      }
+    }
+
+    // Direct fallback (guaranteed to be valid): return non-nationality/non-intl factors
+    final safePool = allFactors()
+        .where((f) => !f.isNationality && !f.isInternational)
+        .toList()
+      ..shuffle(rng);
+    return (rows: safePool.sublist(0, 3), columns: safePool.sublist(3, 6));
   }
 
   /// Six distinct factors drawn from a shuffled pool. Because [Factor] equality

@@ -31,6 +31,7 @@ class ApiFootballRepository implements PlayerRepository {
     required String query,
     required Factor rowFactor,
     required Factor columnFactor,
+    Set<String> excludeIds = const {},
   }) async {
     final trimmed = query.trim();
     if (trimmed.length < 3) {
@@ -44,7 +45,7 @@ class ApiFootballRepository implements PlayerRepository {
     if (!AppConfig.hasApiKey) {
       // Offline fallback: search the curated corpus by name.
       final matches = _searchLocal(trimmed);
-      final valid = _filter(matches, rowFactor, columnFactor);
+      final valid = _filter(matches, rowFactor, columnFactor, excludeIds);
       return SearchResult(
         status: SearchStatus.noApiKey,
         players: valid,
@@ -55,12 +56,12 @@ class ApiFootballRepository implements PlayerRepository {
 
     try {
       final candidates = await _searchApi(trimmed);
-      final valid = _filter(candidates, rowFactor, columnFactor);
+      final valid = _filter(candidates, rowFactor, columnFactor, excludeIds);
       return SearchResult(status: SearchStatus.ok, players: valid);
     } catch (e) {
       // On any API failure, degrade to the local corpus rather than failing.
       final matches = _searchLocal(trimmed);
-      final valid = _filter(matches, rowFactor, columnFactor);
+      final valid = _filter(matches, rowFactor, columnFactor, excludeIds);
       return SearchResult(
         status: SearchStatus.error,
         players: valid,
@@ -69,17 +70,20 @@ class ApiFootballRepository implements PlayerRepository {
     }
   }
 
-  /// Filters candidates down to those satisfying both factors and merges in
-  /// curated attributes so validation has data to work with.
+  /// Filters candidates down to those satisfying both factors (and not already
+  /// used) and merges in curated attributes so validation has data to work
+  /// with.
   List<Player> _filter(
     List<Player> candidates,
     Factor rowFactor,
     Factor columnFactor,
+    Set<String> excludeIds,
   ) {
     final result = <Player>[];
     final seen = <String>{};
     for (final candidate in candidates) {
       final enriched = _enrich(candidate);
+      if (excludeIds.contains(enriched.id)) continue;
       if (rowFactor.matches(enriched) && columnFactor.matches(enriched)) {
         if (seen.add(enriched.id)) result.add(enriched);
       }

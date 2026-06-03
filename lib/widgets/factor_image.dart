@@ -66,38 +66,31 @@ class FactorImage extends StatelessWidget {
 
     if (!art.isWonLeague) return sized;
 
-    // Stack a champion "#1" chip over the league logo for "Won <league>".
-    return Stack(
-      clipBehavior: Clip.none,
+    // "Won <league>" = the league logo with a cup emoji beside it (champion).
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        sized,
-        Positioned(
-          right: -4,
-          top: -4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: AppColors.black,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.pitchGreen, width: 1.5),
-            ),
-            child: const Icon(Icons.emoji_events_rounded,
-                color: AppColors.pitchGreen, size: 12),
-          ),
-        ),
+        Flexible(child: sized),
+        SizedBox(width: imageSize * 0.08),
+        Text('🏆', style: TextStyle(fontSize: imageSize * 0.42)),
       ],
     );
   }
 
+  /// Readable text fallback that fills the header cell and wraps, used when no
+  /// image is available or an image fails to load.
   Widget _fallbackText() {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: SizedBox(
-        width: 120,
-        child: Text(
-          factor.label,
-          textAlign: TextAlign.center,
-          style: AppTheme.label(13, color: textColor, weight: FontWeight.w800),
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Text(
+            factor.label,
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            style: AppTheme.label(15, color: textColor, weight: FontWeight.w800),
+          ),
         ),
       ),
     );

@@ -23,6 +23,7 @@ Future<Player?> showPlayerSearchSheet({
   required PlayerRepository repository,
   required Factor rowFactor,
   required Factor columnFactor,
+  Set<String> excludeIds = const {},
 }) {
   return showModalBottomSheet<Player>(
     context: context,
@@ -32,6 +33,7 @@ Future<Player?> showPlayerSearchSheet({
       repository: repository,
       rowFactor: rowFactor,
       columnFactor: columnFactor,
+      excludeIds: excludeIds,
     ),
   );
 }
@@ -41,11 +43,13 @@ class _PlayerSearchSheet extends StatefulWidget {
     required this.repository,
     required this.rowFactor,
     required this.columnFactor,
+    required this.excludeIds,
   });
 
   final PlayerRepository repository;
   final Factor rowFactor;
   final Factor columnFactor;
+  final Set<String> excludeIds;
 
   @override
   State<_PlayerSearchSheet> createState() => _PlayerSearchSheetState();
@@ -85,6 +89,7 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
       query: query,
       rowFactor: widget.rowFactor,
       columnFactor: widget.columnFactor,
+      excludeIds: widget.excludeIds,
     );
     // Ignore stale responses from earlier keystrokes.
     if (!mounted || id != _requestId) return;

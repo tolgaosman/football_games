@@ -63,9 +63,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Local image assets (trophy photos, app logo).
+  # Local image assets (trophy photos, app logo, league & team logos).
   assets:
     - assets/images/
+    - assets/images/logos/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

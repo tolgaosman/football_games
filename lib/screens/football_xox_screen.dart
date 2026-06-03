@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../data/api_football_repository.dart';
-import '../data/player.dart';
 import '../data/player_repository.dart';
 import '../game/xox/factor.dart';
-import '../game/xox/factor_pool.dart';
 import '../game/xox/xox_cell.dart';
+import '../game/xox/xox_game.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../ui/xox/player_search_sheet.dart';
+import '../widgets/brutalist_button.dart';
 import '../widgets/brutalist_card.dart';
 import '../widgets/factor_image.dart';
 
-/// The Football XOX game: a 3x3 trivia grid.
+/// Football XOX: a two-player (X vs O) tic-tac-toe over a 3x3 trivia grid.
 ///
-/// Each row and column is assigned a random, unique [Factor]. To fill a cell
-/// the user must name a footballer who satisfies BOTH the row and column
-/// factor. Selection is blocked at search (only valid players are selectable),
-/// so a filled cell is always correct.
+/// Each row and column has a random, unique [Factor], and the board is always
+/// fully solvable. Players alternate; naming a footballer who satisfies a
+/// cell's row AND column factor claims it with the current mark. A footballer
+/// may be used once per match. First to complete a row, column, or diagonal of
+/// their mark wins; a full board with no line is a draw.
 class FootballXoxScreen extends StatefulWidget {
   const FootballXoxScreen({super.key, this.repository});
 
@@ -30,46 +31,39 @@ class FootballXoxScreen extends StatefulWidget {
 
 class _FootballXoxScreenState extends State<FootballXoxScreen> {
   late PlayerRepository _repository;
-  late List<Factor> _rows;
-  late List<Factor> _columns;
-
-  /// 3x3 grid in row-major order (9 cells).
-  late List<XoxCell> _cells;
+  late XoxGame _game;
 
   @override
   void initState() {
     super.initState();
     _repository = widget.repository ?? ApiFootballRepository();
-    _newBoard();
+    _game = XoxGame.newMatch();
   }
-
-  void _newBoard() {
-    final board = FactorPool.generateBoard();
-    _rows = board.rows;
-    _columns = board.columns;
-    _cells = List<XoxCell>.filled(9, const XoxCell());
-  }
-
-  int get _filledCount => _cells.where((c) => c.isFilled).length;
 
   Future<void> _onCellTapped(int row, int col) async {
-    final index = row * 3 + col;
-    if (_cells[index].isFilled) return;
+    if (_game.isOver || _game.cellAt(row, col).isFilled) return;
 
     final player = await showPlayerSearchSheet(
       context: context,
       repository: _repository,
-      rowFactor: _rows[row],
-      columnFactor: _columns[col],
+      rowFactor: _game.rows[row],
+      columnFactor: _game.columns[col],
+      excludeIds: _game.usedPlayerIds,
     );
 
-    if (player != null && mounted) {
-      setState(() => _cells[index] = _cells[index].fillWith(player));
+    if (!mounted) return;
+
+    if (player != null) {
+      // Valid pick claims the cell and passes the turn.
+      setState(() => _game = _game.claimCell(row, col, player));
+    } else {
+      // Gave up on the search → forfeit the turn (cell stays open).
+      setState(() => _game = _game.passTurn());
     }
   }
 
-  void _resetBoard() {
-    setState(_newBoard);
+  void _newGame() {
+    setState(() => _game = XoxGame.newMatch());
   }
 
   @override
@@ -81,8 +75,8 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: IconButton(
-              tooltip: 'New board',
-              onPressed: _resetBoard,
+              tooltip: 'New game',
+              onPressed: _newGame,
               icon: const Icon(Icons.refresh_rounded),
             ),
           ),
@@ -93,17 +87,19 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _ScoreBar(filled: _filledCount),
+              _StatusBar(game: _game),
               const SizedBox(height: 16),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    return Center(
-                      child: _buildBoard(constraints),
-                    );
+                    return Center(child: _buildBoard(constraints));
                   },
                 ),
               ),
+              if (_game.isOver) ...[
+                const SizedBox(height: 12),
+                _ResultBanner(game: _game, onPlayAgain: _newGame),
+              ],
             ],
           ),
         ),
@@ -114,7 +110,6 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
   /// Builds the 4x4 visual layout: an empty corner + 3 column headers on top,
   /// 3 row headers down the left, and the 3x3 grid. Scales to fit.
   Widget _buildBoard(BoxConstraints constraints) {
-    // Use the smaller dimension so the square board never overflows.
     final side = constraints.biggest.shortestSide.clamp(0.0, 560.0);
     const spacing = 8.0;
 
@@ -128,7 +123,7 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
             child: Row(
               children: [
                 const Expanded(child: SizedBox.shrink()),
-                for (final col in _columns)
+                for (final col in _game.columns)
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(spacing / 2),
@@ -146,7 +141,7 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(spacing / 2),
-                      child: _HeaderCell(factor: _rows[r]),
+                      child: _HeaderCell(factor: _game.rows[r]),
                     ),
                   ),
                   for (int c = 0; c < 3; c++)
@@ -154,7 +149,8 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(spacing / 2),
                         child: _GridCell(
-                          cell: _cells[r * 3 + c],
+                          cell: _game.cellAt(r, c),
+                          enabled: !_game.isOver,
                           onTap: () => _onCellTapped(r, c),
                         ),
                       ),
@@ -168,38 +164,107 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
   }
 }
 
-class _ScoreBar extends StatelessWidget {
-  const _ScoreBar({required this.filled});
-  final int filled;
+/// Colour for a mark (X = pitch green, O = white).
+Color _markColor(Mark mark) =>
+    mark == Mark.x ? AppColors.pitchGreen : AppColors.white;
+
+String _markLabel(Mark mark) => mark == Mark.x ? 'X' : 'O';
+
+/// Turn indicator / score header.
+class _StatusBar extends StatelessWidget {
+  const _StatusBar({required this.game});
+  final XoxGame game;
 
   @override
   Widget build(BuildContext context) {
-    final complete = filled == 9;
+    final String text;
+    final Color color;
+    if (game.winner != Mark.none) {
+      text = 'PLAYER ${_markLabel(game.winner)} WINS!';
+      color = _markColor(game.winner);
+    } else if (game.isDraw) {
+      text = "IT'S A DRAW";
+      color = AppColors.whiteMuted;
+    } else {
+      text = "PLAYER ${_markLabel(game.current)}'S TURN";
+      color = _markColor(game.current);
+    }
+
     return BrutalistCard(
       color: AppColors.surface,
-      borderColor: complete ? AppColors.pitchGreen : AppColors.white,
+      borderColor: color,
       shadowOffset: const Offset(4, 4),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
         children: [
-          const Icon(Icons.sports_soccer_rounded, color: AppColors.pitchGreen),
-          const SizedBox(width: 12),
-          Expanded(
+          // Turn token chip.
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLow,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color, width: 2.5),
+            ),
             child: Text(
-              complete ? 'BOARD COMPLETE!' : 'PICK A PLAYER FOR EACH SQUARE',
-              style: AppTheme.label(14,
-                  color: complete ? AppColors.pitchGreen : AppColors.white,
-                  weight: FontWeight.w700),
+              game.isOver ? '🏁' : _markLabel(game.current),
+              style: AppTheme.heading(18, color: color),
             ),
           ),
-          Text('$filled/9', style: AppTheme.heading(22, color: AppColors.pitchGreen)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTheme.heading(18, color: color),
+            ),
+          ),
+          Text('${game.filledCount}/9',
+              style: AppTheme.label(14, color: AppColors.whiteMuted)),
         ],
       ),
     );
   }
 }
 
-/// A row/column header showing its factor label.
+/// Win/draw banner with a "play again" button.
+class _ResultBanner extends StatelessWidget {
+  const _ResultBanner({required this.game, required this.onPlayAgain});
+  final XoxGame game;
+  final VoidCallback onPlayAgain;
+
+  @override
+  Widget build(BuildContext context) {
+    final won = game.winner != Mark.none;
+    final color = won ? _markColor(game.winner) : AppColors.whiteMuted;
+    return BrutalistCard(
+      color: AppColors.surface,
+      borderColor: color,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              won
+                  ? 'Player ${_markLabel(game.winner)} completed a line!'
+                  : 'No more moves — nobody got a line.',
+              style: AppTheme.label(14, color: AppColors.white),
+            ),
+          ),
+          const SizedBox(width: 12),
+          BrutalistButton(
+            onPressed: onPlayAgain,
+            expand: false,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: const Text('PLAY AGAIN'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A row/column header showing its factor image (icon-only, text fallback).
 class _HeaderCell extends StatelessWidget {
   const _HeaderCell({required this.factor});
   final Factor factor;
@@ -218,25 +283,31 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
-/// A single playable grid cell — empty (tappable) or filled with a player.
+/// A single playable grid cell — empty (tappable) or claimed by X/O.
 class _GridCell extends StatelessWidget {
-  const _GridCell({required this.cell, required this.onTap});
+  const _GridCell({
+    required this.cell,
+    required this.enabled,
+    required this.onTap,
+  });
   final XoxCell cell;
+  final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final filled = cell.isFilled;
+    final markColor = filled ? _markColor(cell.mark) : AppColors.white;
     return GestureDetector(
-      onTap: filled ? null : onTap,
+      onTap: (filled || !enabled) ? null : onTap,
       child: BrutalistCard(
         color: filled ? AppColors.surface : AppColors.surfaceLow,
-        borderColor: filled ? AppColors.pitchGreen : AppColors.white,
+        borderColor: filled ? markColor : AppColors.white,
         shadowOffset: const Offset(3, 3),
         radius: 12,
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(4),
         alignment: Alignment.center,
-        child: filled ? _filledContent(cell.player!) : _emptyContent(),
+        child: filled ? _claimedContent(cell) : _emptyContent(),
       ),
     );
   }
@@ -245,26 +316,42 @@ class _GridCell extends StatelessWidget {
     return const Icon(Icons.add_rounded, color: AppColors.whiteMuted, size: 28);
   }
 
-  Widget _filledContent(Player player) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _claimedContent(XoxCell cell) {
+    final player = cell.player!;
+    final markColor = _markColor(cell.mark);
+    return Stack(
       children: [
-        const Icon(Icons.check_circle_rounded,
-            color: AppColors.pitchGreen, size: 22),
-        const SizedBox(height: 4),
-        Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: SizedBox(
-              width: 110,
-              child: Text(
-                player.name,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                style: AppTheme.label(12,
-                    color: AppColors.white, weight: FontWeight.w700),
-              ),
+        // Big translucent mark behind the name.
+        Positioned.fill(
+          child: Center(
+            child: Text(
+              _markLabel(cell.mark),
+              style: AppTheme.heading(54, color: markColor.withValues(alpha: 0.18)),
             ),
+          ),
+        ),
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check_circle_rounded, color: markColor, size: 18),
+              const SizedBox(height: 2),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: 96,
+                    child: Text(
+                      player.name,
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      style: AppTheme.label(11,
+                          color: AppColors.white, weight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
