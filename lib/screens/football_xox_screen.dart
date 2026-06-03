@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../ui/xox/player_search_sheet.dart';
 import '../widgets/brutalist_card.dart';
+import '../widgets/factor_image.dart';
 
 /// The Football XOX game: a 3x3 trivia grid.
 ///
@@ -212,18 +213,7 @@ class _HeaderCell extends StatelessWidget {
       radius: 12,
       padding: const EdgeInsets.all(6),
       alignment: Alignment.center,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: SizedBox(
-          width: 120,
-          child: Text(
-            factor.label,
-            textAlign: TextAlign.center,
-            style: AppTheme.label(13,
-                color: AppColors.black, weight: FontWeight.w800),
-          ),
-        ),
-      ),
+      child: FactorImage(factor: factor, imageSize: 42),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../game/xox/factor.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/brutalist_card.dart';
+import '../../widgets/factor_image.dart';
 
 /// Modal bottom sheet for picking a player to fill an XOX cell.
 ///
@@ -158,7 +159,7 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
           // The two factor "chips" the player must satisfy.
           Row(
             children: [
-              Expanded(child: _FactorChip(label: widget.rowFactor.label)),
+              Expanded(child: _FactorChip(factor: widget.rowFactor)),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text('×',
@@ -167,7 +168,7 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
                         fontSize: 22,
                         fontWeight: FontWeight.bold)),
               ),
-              Expanded(child: _FactorChip(label: widget.columnFactor.label)),
+              Expanded(child: _FactorChip(factor: widget.columnFactor)),
             ],
           ),
         ],
@@ -265,8 +266,8 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
 }
 
 class _FactorChip extends StatelessWidget {
-  const _FactorChip({required this.label});
-  final String label;
+  const _FactorChip({required this.factor});
+  final Factor factor;
 
   @override
   Widget build(BuildContext context) {
@@ -275,13 +276,25 @@ class _FactorChip extends StatelessWidget {
       borderColor: AppColors.pitchGreen,
       shadowOffset: Offset.zero,
       radius: 10,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Text(
-        label,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
-        style: AppTheme.label(13, color: AppColors.pitchGreen, weight: FontWeight.w700),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FactorImage(
+            factor: factor,
+            imageSize: 36,
+            textColor: AppColors.pitchGreen,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            factor.label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: AppTheme.label(12,
+                color: AppColors.pitchGreen, weight: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }

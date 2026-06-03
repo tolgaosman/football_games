@@ -31,6 +31,26 @@ void main() {
     test('exposes exactly 75 nationalities', () {
       expect(FactorPool.nationalities, hasLength(75));
     });
+
+    test('never places a nationality on both a row and a column', () {
+      for (var seed = 0; seed < 300; seed++) {
+        final board = FactorPool.generateBoard(Random(seed));
+        final rowsHaveNation = board.rows.any((f) => f.isNationality);
+        final colsHaveNation = board.columns.any((f) => f.isNationality);
+        expect(rowsHaveNation && colsHaveNation, isFalse,
+            reason: 'nationality on both axes for seed $seed');
+      }
+    });
+
+    test('never places an international tournament on both axes', () {
+      for (var seed = 0; seed < 300; seed++) {
+        final board = FactorPool.generateBoard(Random(seed));
+        final rowsHaveIntl = board.rows.any((f) => f.isInternational);
+        final colsHaveIntl = board.columns.any((f) => f.isInternational);
+        expect(rowsHaveIntl && colsHaveIntl, isFalse,
+            reason: 'international on both axes for seed $seed');
+      }
+    });
   });
 
   group('Factor.matches', () {

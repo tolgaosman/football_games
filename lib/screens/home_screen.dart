@@ -22,26 +22,26 @@ class HomeScreen extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
-                    vertical: 32,
+                    vertical: 20,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 16),
-                      const FlyballLogo(size: 170),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 8),
+                      const FlyballLogo(size: 110),
+                      const SizedBox(height: 14),
                       // Wordmark.
                       Text.rich(
                         TextSpan(
                           children: [
                             TextSpan(
                               text: 'FLY',
-                              style: AppTheme.heading(46,
+                              style: AppTheme.heading(40,
                                   color: AppColors.white),
                             ),
                             TextSpan(
                               text: 'BALL',
-                              style: AppTheme.heading(46,
+                              style: AppTheme.heading(40,
                                   color: AppColors.pitchGreen),
                             ),
                           ],
@@ -54,14 +54,14 @@ class HomeScreen extends StatelessWidget {
                             color: AppColors.whiteMuted,
                             weight: FontWeight.w700),
                       ),
-                      const SizedBox(height: 44),
+                      const SizedBox(height: 30),
                       _GameButton(
                         label: 'FOOTBALL XOX',
                         icon: Icons.grid_3x3_rounded,
                         onPressed: () => Navigator.of(context)
                             .pushNamed(AppRoutes.footballXox),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
                       _GameButton(
                         label: 'FOOTBALLDLE',
                         icon: Icons.abc_rounded,
@@ -71,7 +71,7 @@ class HomeScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context)
                             .pushNamed(AppRoutes.footballdle),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
                       _GameButton(
                         label: '1 TEAM 1 COUNTRY',
                         icon: Icons.public_rounded,
@@ -81,7 +81,7 @@ class HomeScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context)
                             .pushNamed(AppRoutes.oneTeamOneCountry),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                     ],
                   ),
                 ),
@@ -119,7 +119,7 @@ class _GameButton extends StatelessWidget {
       color: color,
       foregroundColor: foregroundColor,
       borderColor: borderColor,
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

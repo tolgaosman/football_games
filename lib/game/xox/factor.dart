@@ -40,6 +40,15 @@ class Factor {
   /// e.g. "Premier League", "World Cup", "Real Madrid", "France".
   final String value;
 
+  /// True when this factor constrains nationality. Two nationality factors on
+  /// opposing axes would create impossible cells, so the board generator never
+  /// places one on a row and another on a column.
+  bool get isNationality => type == FactorType.nationality;
+
+  /// True when this factor is an international tournament title. Like
+  /// nationalities, two of these on opposing axes are mutually exclusive.
+  bool get isInternational => type == FactorType.wonInternational;
+
   /// Returns true when [player] satisfies this constraint.
   bool matches(Player player) {
     switch (type) {

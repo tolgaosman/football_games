@@ -111,18 +111,48 @@ class FactorPool {
     return factors;
   }
 
-  /// Picks 3 row + 3 column factors, all six guaranteed unique.
+  /// Picks 3 row + 3 column factors, all six guaranteed unique, satisfying the
+  /// axis-exclusivity rules (see [_axesAreValid]).
   ///
   /// Returns a record of (rows, columns), each a list of length 3.
   static ({List<Factor> rows, List<Factor> columns}) generateBoard([
     Random? random,
   ]) {
     final rng = random ?? Random();
-    final pool = allFactors()..shuffle(rng);
 
-    // Because [Factor] equality is by (type, value) and the pool contains no
-    // duplicates, taking the first six distinct entries yields six unique
-    // factors. We still guard with a set for safety.
+    // Reject-sample whole draws until the row/column split obeys the rules.
+    // With a 100+ factor pool a valid draw is found almost immediately; the cap
+    // guards against pathological cases.
+    const maxAttempts = 200;
+    List<Factor>? rows;
+    List<Factor>? columns;
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      final chosen = _pickSixUnique(rng);
+      final r = chosen.sublist(0, 3);
+      final c = chosen.sublist(3, 6);
+      if (_axesAreValid(r, c)) {
+        rows = r;
+        columns = c;
+        break;
+      }
+    }
+
+    // Fallback (should never trigger): use the last valid-or-not draw.
+    if (rows == null || columns == null) {
+      final chosen = _pickSixUnique(rng);
+      rows = chosen.sublist(0, 3);
+      columns = chosen.sublist(3, 6);
+    }
+
+    return (rows: rows, columns: columns);
+  }
+
+  /// Six distinct factors drawn from a shuffled pool. Because [Factor] equality
+  /// is by (type, value) and the pool has no duplicates, the first six distinct
+  /// entries are unique.
+  static List<Factor> _pickSixUnique(Random rng) {
+    final pool = allFactors()..shuffle(rng);
     final chosen = <Factor>[];
     final seen = <Factor>{};
     for (final factor in pool) {
@@ -131,10 +161,23 @@ class FactorPool {
         if (chosen.length == 6) break;
       }
     }
+    return chosen;
+  }
 
-    return (
-      rows: chosen.sublist(0, 3),
-      columns: chosen.sublist(3, 6),
-    );
+  /// A nationality on a row crossing a nationality on a column (and likewise two
+  /// international-tournament factors) would produce impossible cells. So the
+  /// row set and column set must not BOTH contain a nationality, nor BOTH
+  /// contain an international tournament. (Two of the same group on the *same*
+  /// axis is fine — those headers never intersect each other.)
+  static bool _axesAreValid(List<Factor> rows, List<Factor> columns) {
+    final rowsHaveNation = rows.any((f) => f.isNationality);
+    final colsHaveNation = columns.any((f) => f.isNationality);
+    if (rowsHaveNation && colsHaveNation) return false;
+
+    final rowsHaveIntl = rows.any((f) => f.isInternational);
+    final colsHaveIntl = columns.any((f) => f.isInternational);
+    if (rowsHaveIntl && colsHaveIntl) return false;
+
+    return true;
   }
 }

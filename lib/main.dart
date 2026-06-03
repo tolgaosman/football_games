@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'routing/app_routes.dart';
 import 'theme/app_theme.dart';
+import 'widgets/phone_frame.dart';
 
 void main() {
   runApp(const FlyballApp());
@@ -19,6 +20,9 @@ class FlyballApp extends StatelessWidget {
       theme: AppTheme.dark,
       initialRoute: AppRoutes.home,
       onGenerateRoute: AppRoutes.onGenerateRoute,
+      builder: (context, child) {
+        return PhoneFrame(child: child ?? const SizedBox.shrink());
+      },
     );
   }
 }
