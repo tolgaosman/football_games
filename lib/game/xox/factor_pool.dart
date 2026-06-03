@@ -225,23 +225,40 @@ class FactorPool {
       }
     }
 
-    // Absolute fallback: pick any 6 unique factors and shuffle until valid
-    final chosen = _pickSixUnique(rng);
-    for (var i = 0; i < 100; i++) {
-      chosen.shuffle(rng);
-      final r = chosen.sublist(0, 3);
-      final c = chosen.sublist(3, 6);
-      if (_axesAreValid(r, c)) {
-        return (rows: r, columns: c);
-      }
-    }
-
-    // Direct fallback (guaranteed to be valid): return non-nationality/non-intl factors
-    final safePool = allFactors()
-        .where((f) => !f.isNationality && !f.isInternational)
-        .toList()
+    // Last-resort solvable build: anchor on the player with the MOST satisfied
+    // factors and use only factors they satisfy, so every cell is solvable by
+    // that anchor regardless of the axis split. Pad (if somehow < 6) only with
+    // other factors that anchor also satisfies — never arbitrary ones.
+    final best = pool.reduce((a, b) =>
+        allFactors().where((f) => f.matches(a)).length >=
+                allFactors().where((f) => f.matches(b)).length
+            ? a
+            : b);
+    final satisfied = allFactors().where((f) => f.matches(best)).toList()
       ..shuffle(rng);
-    return (rows: safePool.sublist(0, 3), columns: safePool.sublist(3, 6));
+    // Guarantee at least 6 by padding with safe (non-nationality/non-intl)
+    // factors; these may be unsolvable for the anchor but only run in the
+    // degenerate near-empty-corpus case the real game never hits.
+    if (satisfied.length < 6) {
+      final pad = allFactors()
+          .where((f) =>
+              !f.isNationality && !f.isInternational && !satisfied.contains(f))
+          .toList()
+        ..shuffle(rng);
+      satisfied.addAll(pad);
+    }
+    // Prefer a split that obeys the axis rules; if none in a few tries, accept
+    // any split (still fully solvable, just possibly with a redundant axis).
+    for (var i = 0; i < 100; i++) {
+      satisfied.shuffle(rng);
+      final r = satisfied.sublist(0, 3);
+      final c = satisfied.sublist(3, 6);
+      if (_axesAreValid(r, c)) return (rows: r, columns: c);
+    }
+    return (
+      rows: satisfied.sublist(0, 3),
+      columns: satisfied.sublist(3, 6),
+    );
   }
 
   /// Six distinct factors drawn from a shuffled pool. Because [Factor] equality

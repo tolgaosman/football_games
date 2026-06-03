@@ -59,57 +59,75 @@ class FactorArtResolver {
     'Copa America': 'assets/images/copaAmerica.png',
   };
 
-  /// League logo asset paths (user-supplied), keyed by canonical league name.
-  /// Files live in `assets/images/logos/`.
+  /// League badge asset paths (user-supplied), keyed by canonical league name.
+  /// One badge per league subfolder.
   static const Map<String, String> _leagueLogoAsset = {
-    'Premier League': 'assets/images/logos/premierLeague.png',
-    'La Liga': 'assets/images/logos/laLiga.png',
-    'Serie A': 'assets/images/logos/serieA.png',
-    'Bundesliga': 'assets/images/logos/bundesliga.png',
-    'Ligue 1': 'assets/images/logos/ligue1.png',
-    'Trendyol Süper Lig': 'assets/images/logos/superLig.png',
+    'Premier League': 'assets/images/logos/epl/eplLogo.png',
+    'La Liga': 'assets/images/logos/laLiga/laLigaLogo.png',
+    'Serie A': 'assets/images/logos/serieA/serieALogo.png',
+    'Bundesliga': 'assets/images/logos/bundesliga/bundesligaLogo.png',
+    'Ligue 1': 'assets/images/logos/league1/ligue1Logo.png',
+    'Trendyol Süper Lig': 'assets/images/logos/superLig/superLigLogo.png',
   };
 
   /// Club logo asset paths (user-supplied), keyed by canonical club name.
-  /// Files live in `assets/images/logos/` using camelCase filenames.
+  /// Files live in per-league subfolders of `assets/images/logos/` with the
+  /// user's abbreviated filenames.
   static const Map<String, String> _teamLogoAsset = {
-    'Arsenal': 'assets/images/logos/arsenal.png',
-    'Manchester City': 'assets/images/logos/manchesterCity.png',
-    'Liverpool': 'assets/images/logos/liverpool.png',
-    'Chelsea': 'assets/images/logos/chelsea.png',
-    'Manchester United': 'assets/images/logos/manchesterUnited.png',
-    'Real Madrid': 'assets/images/logos/realMadrid.png',
-    'Barcelona': 'assets/images/logos/barcelona.png',
-    'Atletico Madrid': 'assets/images/logos/atleticoMadrid.png',
-    'Bayern Munich': 'assets/images/logos/bayernMunich.png',
-    'Borussia Dortmund': 'assets/images/logos/borussiaDortmund.png',
-    'Juventus': 'assets/images/logos/juventus.png',
-    'AC Milan': 'assets/images/logos/acMilan.png',
-    'Inter Milan': 'assets/images/logos/interMilan.png',
-    'Napoli': 'assets/images/logos/napoli.png',
-    'PSG': 'assets/images/logos/psg.png',
-    'Marseille': 'assets/images/logos/marseille.png',
-    'Lyon': 'assets/images/logos/lyon.png',
-    'Galatasaray': 'assets/images/logos/galatasaray.png',
-    'Fenerbahce': 'assets/images/logos/fenerbahce.png',
-    'Besiktas': 'assets/images/logos/besiktas.png',
-    'Tottenham Hotspur': 'assets/images/logos/tottenhamHotspur.png',
-    'Newcastle United': 'assets/images/logos/newcastleUnited.png',
-    'Aston Villa': 'assets/images/logos/astonVilla.png',
-    'Everton': 'assets/images/logos/everton.png',
-    'West Ham United': 'assets/images/logos/westHamUnited.png',
-    'Sevilla': 'assets/images/logos/sevilla.png',
-    'Valencia': 'assets/images/logos/valencia.png',
-    'Bayer Leverkusen': 'assets/images/logos/bayerLeverkusen.png',
-    'Schalke 04': 'assets/images/logos/schalke04.png',
-    'Werder Bremen': 'assets/images/logos/werderBremen.png',
-    'Roma': 'assets/images/logos/roma.png',
-    'Lazio': 'assets/images/logos/lazio.png',
-    'Fiorentina': 'assets/images/logos/fiorentina.png',
-    'Atalanta': 'assets/images/logos/atalanta.png',
-    'Lille': 'assets/images/logos/lille.png',
-    'Trabzonspor': 'assets/images/logos/trabzonspor.png',
-    'Başakşehir': 'assets/images/logos/basaksehir.png',
+    // Premier League
+    'Arsenal': 'assets/images/logos/epl/arsenalLogo.png',
+    'Aston Villa': 'assets/images/logos/epl/astonLogo.png',
+    'Brighton': 'assets/images/logos/epl/brightonLogo.png',
+    'Chelsea': 'assets/images/logos/epl/chelseaLogo.png',
+    'Crystal Palace': 'assets/images/logos/epl/crystalpLogo.png',
+    'Liverpool': 'assets/images/logos/epl/liverpoolLogo.png',
+    'Manchester City': 'assets/images/logos/epl/mcityLogo.png',
+    'Manchester United': 'assets/images/logos/epl/manuLogo.png',
+    'Newcastle United': 'assets/images/logos/epl/newcastleLogo.png',
+    'Nottingham Forest': 'assets/images/logos/epl/forestLogo.png',
+    'Tottenham Hotspur': 'assets/images/logos/epl/tottenhamLogo.png',
+    'West Ham United': 'assets/images/logos/epl/westHamLogo.png',
+
+    // La Liga
+    'Real Madrid': 'assets/images/logos/laLiga/rmaLogo.png',
+    'Barcelona': 'assets/images/logos/laLiga/barcaLogo.png',
+    'Atletico Madrid': 'assets/images/logos/laLiga/atmLogo.png',
+    'Athletic Bilbao': 'assets/images/logos/laLiga/bilbaoLogo.png',
+    'Real Betis': 'assets/images/logos/laLiga/betisLogo.png',
+    'Sevilla': 'assets/images/logos/laLiga/sevillaLogo.png',
+    'Villarreal': 'assets/images/logos/laLiga/villarrealLogo.png',
+
+    // Bundesliga
+    'Bayern Munich': 'assets/images/logos/bundesliga/bayernLogo.png',
+    'Borussia Dortmund': 'assets/images/logos/bundesliga/bvbLogo.png',
+    'Bayer Leverkusen': 'assets/images/logos/bundesliga/leverkusenLogo.png',
+    'Eintracht Frankfurt': 'assets/images/logos/bundesliga/frankfurtLogo.png',
+    'RB Leipzig': 'assets/images/logos/bundesliga/leipzigLogo.png',
+    'VfL Wolfsburg': 'assets/images/logos/bundesliga/wolfsburgLogo.png',
+
+    // Serie A
+    'AC Milan': 'assets/images/logos/serieA/milanLogo.png',
+    'Inter Milan': 'assets/images/logos/serieA/interLogo.png',
+    'Juventus': 'assets/images/logos/serieA/juveLogo.png',
+    'Napoli': 'assets/images/logos/serieA/napoliLogo.png',
+    'Atalanta': 'assets/images/logos/serieA/atalantaLogo.png',
+    'Roma': 'assets/images/logos/serieA/romaLogo.png',
+    'Lazio': 'assets/images/logos/serieA/lazioLogo.png',
+    'Fiorentina': 'assets/images/logos/serieA/fiorentinaLogo.png',
+
+    // Ligue 1
+    'PSG': 'assets/images/logos/league1/psgLogo.png',
+    'Lyon': 'assets/images/logos/league1/lyonLogo.png',
+    'Lille': 'assets/images/logos/league1/lilleLogo.png',
+    'Marseille': 'assets/images/logos/league1/marsilyaLogo.png',
+    'Monaco': 'assets/images/logos/league1/monacoLogo.png',
+
+    // Trendyol Süper Lig
+    'Galatasaray': 'assets/images/logos/superLig/gsLogo.png',
+    'Fenerbahce': 'assets/images/logos/superLig/fbLogo.png',
+    'Besiktas': 'assets/images/logos/superLig/bjkLogo.png',
+    'Trabzonspor': 'assets/images/logos/superLig/tsLogo.png',
+    'Başakşehir': 'assets/images/logos/superLig/basakLogo.png',
   };
 
   /// Country → ISO-3166 alpha-2 code for flagcdn.com. UK home nations use the

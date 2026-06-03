@@ -64,9 +64,16 @@ flutter:
   uses-material-design: true
 
   # Local image assets (trophy photos, app logo, league & team logos).
+  # Flutter does not recurse into subfolders, so each league folder is listed.
   assets:
     - assets/images/
     - assets/images/logos/
+    - assets/images/logos/epl/
+    - assets/images/logos/laLiga/
+    - assets/images/logos/bundesliga/
+    - assets/images/logos/serieA/
+    - assets/images/logos/league1/
+    - assets/images/logos/superLig/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
