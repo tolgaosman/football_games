@@ -51,6 +51,27 @@ class Factor {
 
   /// Returns true when [player] satisfies this constraint.
   bool matches(Player player) {
+    if (player.wikipediaCategories.isNotEmpty && !isNationality) {
+      // Use dynamic Wikipedia validation!
+      // Categories look like "Category:Real Madrid CF players", "Category:Süper Lig players"
+      final val = value.toLowerCase();
+      // Adjust value for international tournaments
+      String searchVal = val;
+      if (type == FactorType.wonInternational) {
+        if (val == 'world cup') searchVal = 'fifa world cup';
+        if (val == 'euros') searchVal = 'uefa euro';
+        if (val == 'copa america') searchVal = 'copa américa';
+      }
+      
+      for (final cat in player.wikipediaCategories) {
+        if (cat.toLowerCase().contains(searchVal)) {
+          return true;
+        }
+      }
+      // If we fall through and we have wikipedia categories, it means Wikipedia says they don't match.
+      // But we can fallback to the local DB just in case Wikipedia is missing a category.
+    }
+
     switch (type) {
       case FactorType.playedLeague:
         return player.leaguesPlayed.contains(value);

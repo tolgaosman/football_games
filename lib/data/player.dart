@@ -14,6 +14,7 @@ class Player {
     this.leagueTitles = const {},
     this.internationalTitles = const {},
     this.teams = const {},
+    this.wikipediaCategories = const {},
   });
 
   /// Stable id (API-Football player id when available, else a local slug).
@@ -40,6 +41,9 @@ class Player {
   /// Notable clubs the player has represented. e.g. {"Real Madrid"}.
   final Set<String> teams;
 
+  /// Categories fetched dynamically from Wikipedia for validation.
+  final Set<String> wikipediaCategories;
+
   Player copyWith({
     String? nationality,
     String? photoUrl,
@@ -47,6 +51,7 @@ class Player {
     Set<String>? leagueTitles,
     Set<String>? internationalTitles,
     Set<String>? teams,
+    Set<String>? wikipediaCategories,
   }) {
     return Player(
       id: id,
@@ -57,6 +62,7 @@ class Player {
       leagueTitles: leagueTitles ?? this.leagueTitles,
       internationalTitles: internationalTitles ?? this.internationalTitles,
       teams: teams ?? this.teams,
+      wikipediaCategories: wikipediaCategories ?? this.wikipediaCategories,
     );
   }
 }

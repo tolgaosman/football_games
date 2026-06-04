@@ -319,39 +319,24 @@ class _GridCell extends StatelessWidget {
   Widget _claimedContent(XoxCell cell) {
     final player = cell.player!;
     final markColor = _markColor(cell.mark);
-    return Stack(
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Big translucent mark behind the name.
-        Positioned.fill(
-          child: Center(
-            child: Text(
-              _markLabel(cell.mark),
-              style: AppTheme.heading(54, color: markColor.withValues(alpha: 0.18)),
-            ),
-          ),
-        ),
-        Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle_rounded, color: markColor, size: 18),
-              const SizedBox(height: 2),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: SizedBox(
-                    width: 96,
-                    child: Text(
-                      player.name,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      style: AppTheme.label(11,
-                          color: AppColors.white, weight: FontWeight.w700),
-                    ),
-                  ),
-                ),
+        Icon(Icons.check_circle_rounded, color: markColor, size: 20),
+        const SizedBox(height: 4),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SizedBox(
+              width: 110,
+              child: Text(
+                player.name,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                style: AppTheme.label(12,
+                    color: AppColors.white, weight: FontWeight.w700),
               ),
-            ],
+            ),
           ),
         ),
       ],

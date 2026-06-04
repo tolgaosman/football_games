@@ -45,7 +45,7 @@ class ApiFootballRepository implements PlayerRepository {
     if (!AppConfig.hasApiKey) {
       // Offline fallback: search the curated corpus by name.
       final matches = _searchLocal(trimmed);
-      final valid = _filter(matches, rowFactor, columnFactor, excludeIds);
+      final valid = await _filterAsync(matches, rowFactor, columnFactor, excludeIds);
       return SearchResult(
         status: SearchStatus.noApiKey,
         players: valid,
@@ -56,12 +56,12 @@ class ApiFootballRepository implements PlayerRepository {
 
     try {
       final candidates = await _searchApi(trimmed);
-      final valid = _filter(candidates, rowFactor, columnFactor, excludeIds);
+      final valid = await _filterAsync(candidates, rowFactor, columnFactor, excludeIds);
       return SearchResult(status: SearchStatus.ok, players: valid);
     } catch (e) {
       // On any API failure, degrade to the local corpus rather than failing.
       final matches = _searchLocal(trimmed);
-      final valid = _filter(matches, rowFactor, columnFactor, excludeIds);
+      final valid = await _filterAsync(matches, rowFactor, columnFactor, excludeIds);
       return SearchResult(
         status: SearchStatus.error,
         players: valid,
@@ -70,38 +70,82 @@ class ApiFootballRepository implements PlayerRepository {
     }
   }
 
-  /// Filters candidates down to those satisfying both factors (and not already
-  /// used) and merges in curated attributes so validation has data to work
-  /// with.
-  List<Player> _filter(
+  /// Filters candidates down to those satisfying both factors.
+  /// If a candidate is not in the local curated attributes, we fetch their Wikipedia categories
+  /// to validate them dynamically, supporting any player of all time.
+  Future<List<Player>> _filterAsync(
     List<Player> candidates,
     Factor rowFactor,
     Factor columnFactor,
     Set<String> excludeIds,
-  ) {
+  ) async {
     final result = <Player>[];
     final seen = <String>{};
+    final unknownCandidates = <Player>[];
+
     for (final candidate in candidates) {
-      final enriched = _enrich(candidate);
-      if (excludeIds.contains(enriched.id)) continue;
-      if (rowFactor.matches(enriched) && columnFactor.matches(enriched)) {
-        if (seen.add(enriched.id)) result.add(enriched);
+      if (excludeIds.contains(candidate.id)) continue;
+      
+      final curated = PlayerAttributes.lookup(candidate.name);
+      if (curated != null) {
+        final enriched = curated.copyWith(
+          nationality: candidate.nationality.isNotEmpty ? candidate.nationality : curated.nationality,
+          photoUrl: candidate.photoUrl ?? curated.photoUrl,
+        );
+        if (rowFactor.matches(enriched) && columnFactor.matches(enriched)) {
+          if (seen.add(enriched.id)) result.add(enriched);
+        }
+      } else {
+        unknownCandidates.add(candidate);
       }
     }
-    return result;
-  }
 
-  /// Merges API identity with curated attributes. The curated record wins for
-  /// league/title/team data; nationality prefers the API value when present.
-  Player _enrich(Player candidate) {
-    final curated = PlayerAttributes.lookup(candidate.name);
-    if (curated == null) return candidate;
-    return curated.copyWith(
-      nationality: candidate.nationality.isNotEmpty
-          ? candidate.nationality
-          : curated.nationality,
-      photoUrl: candidate.photoUrl ?? curated.photoUrl,
-    );
+    // Dynamic Wikipedia validation for un-curated players
+    if (unknownCandidates.isNotEmpty) {
+      try {
+        final titles = unknownCandidates.map((c) => c.name).take(40).toList();
+        final uri = Uri.parse(
+            'https://en.wikipedia.org/w/api.php?action=query&prop=categories&titles=${titles.map(Uri.encodeComponent).join("|")}&redirects=1&cllimit=max&format=json');
+        
+        final response = await _client.get(uri).timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body) as Map<String, dynamic>;
+          final pages = (body['query']?['pages'] as Map?)?.values ?? [];
+          
+          final categoryMap = <String, Set<String>>{};
+          for (final page in pages) {
+            final title = page['title']?.toString().toLowerCase() ?? '';
+            final cats = (page['categories'] as List?)
+                ?.map((c) => c['title'].toString())
+                .toSet() ?? {};
+            categoryMap[title] = cats;
+          }
+          
+          for (final candidate in unknownCandidates) {
+            Set<String>? cats;
+            final lowerName = candidate.name.toLowerCase();
+            // Match returned Wikipedia page titles against the candidate name.
+            for (final entry in categoryMap.entries) {
+              if (lowerName.contains(entry.key) || entry.key.contains(lowerName)) {
+                cats = entry.value;
+                break;
+              }
+            }
+            
+            if (cats != null && cats.isNotEmpty) {
+               final enriched = candidate.copyWith(wikipediaCategories: cats);
+               if (rowFactor.matches(enriched) && columnFactor.matches(enriched)) {
+                  if (seen.add(enriched.id)) result.add(enriched);
+               }
+            }
+          }
+        }
+      } catch (_) {
+        // Fallback: if Wikipedia fails, we can't validate unknown players.
+      }
+    }
+
+    return result;
   }
 
   List<Player> _searchLocal(String query) {
