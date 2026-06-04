@@ -24,6 +24,19 @@ class FactorArt {
 class FactorArtResolver {
   FactorArtResolver._();
 
+  /// The club badge asset path for [team] (canonical club name), or null if the
+  /// club has no logo. Exposes the private map for non-XOX features (e.g. the
+  /// 2 Team 1 Player slots) without duplicating the asset table.
+  static String? teamLogoAsset(String team) => _teamLogoAsset[team];
+
+  /// The flag image URL for [nationality] (flagcdn.com), or null if the country
+  /// has no mapping. Exposes the private map for non-XOX features (e.g. the
+  /// 1 Team 1 Country slots).
+  static String? countryFlagUrl(String nationality) {
+    final iso = _countryIso2[nationality];
+    return iso == null ? null : 'https://flagcdn.com/w160/$iso.png';
+  }
+
   static FactorArt forFactor(Factor factor) {
     switch (factor.type) {
       case FactorType.nationality:
