@@ -5,10 +5,7 @@ import 'player.dart';
 enum SearchStatus {
   ok,
 
-  /// No API key configured — running against the local corpus only.
-  noApiKey,
-
-  /// A network/parse error occurred while contacting the API.
+  /// A network/parse error occurred while contacting the player service.
   error,
 }
 

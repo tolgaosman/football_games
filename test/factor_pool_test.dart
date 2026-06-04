@@ -30,8 +30,8 @@ void main() {
       expect(a.columns, equals(b.columns));
     });
 
-    test('exposes exactly 75 nationalities', () {
-      expect(FactorPool.nationalities, hasLength(75));
+    test('exposes exactly 59 nationalities', () {
+      expect(FactorPool.nationalities, hasLength(59));
     });
 
     test('never places a nationality on both a row and a column', () {
@@ -54,10 +54,15 @@ void main() {
       }
     });
 
-    test('every generated board is fully solvable against the corpus', () {
+    test('every generated board is fully solvable against the real cache', () {
+      // No injected corpus: generateBoard validates against the real seed cache
+      // (PlayerAttributes.all). Every one of the 9 cells must be answerable by a
+      // player that actually exists in that cache.
       final corpus = PlayerAttributes.all;
+      expect(corpus, isNotEmpty,
+          reason: 'seed cache must be non-empty for solvability');
       for (var seed = 0; seed < 200; seed++) {
-        final board = FactorPool.generateBoard(Random(seed), corpus);
+        final board = FactorPool.generateBoard(Random(seed));
         expect(
           BoardSolver.boardIsSolvable(board.rows, board.columns, corpus),
           isTrue,

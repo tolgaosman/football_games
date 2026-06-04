@@ -36,7 +36,7 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = widget.repository ?? ApiFootballRepository();
+    _repository = widget.repository ?? TransfermarktRepository();
     _game = XoxGame.newMatch();
   }
 

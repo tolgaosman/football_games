@@ -88,20 +88,20 @@ class FactorPool {
     'Başakşehir',
   ];
 
-  /// The exact 75 nationalities supplied for use as factors.
+  /// The exact 59 nationalities supplied for use as factors.
   static const List<String> nationalities = [
     'France', 'Spain', 'Argentina', 'England', 'Portugal', 'Brazil',
     'Netherlands', 'Morocco', 'Belgium', 'Germany', 'Croatia', 'Italy',
     'Colombia', 'Senegal', 'Mexico', 'USA', 'Uruguay', 'Japan', 'Switzerland',
     'Denmark', 'Iran', 'Turkiye', 'Ecuador', 'Austria', 'South Korea',
     'Nigeria', 'Australia', 'Algeria', 'Egypt', 'Canada', 'Norway', 'Ukraine',
-    'Panama', 'Ivory Coast', 'Poland', 'Russia', 'Wales', 'Sweden', 'Serbia',
-    'Paraguay', 'Czechia', 'Hungary', 'Scotland', 'Tunisia', 'Cameroon',
-    'DR Congo', 'Greece', 'Slovakia', 'Venezuela', 'Uzbekistan', 'Costa Rica',
-    'Mali', 'Peru', 'Chile', 'Qatar', 'Romania', 'Iraq', 'Slovenia', 'Ireland',
-    'South Africa', 'Saudi Arabia', 'Burkina Faso', 'Jordan', 'Albania',
-    'Bosnia', 'Honduras', 'North Macedonia', 'UAE', 'Cape Verde',
-    'N. Ireland', 'Jamaica', 'Georgia', 'Finland', 'Ghana', 'Iceland',
+    'Ivory Coast', 'Poland', 'Russia', 'Wales', 'Sweden', 'Serbia',
+    'Czechia', 'Hungary', 'Scotland', 'Cameroon',
+    'DR Congo', 'Greece', 'Slovakia', 'Uzbekistan',
+    'Mali', 'Romania', 'Iraq', 'Slovenia', 'Ireland',
+    'South Africa', 'Albania',
+    'Bosnia', 'Cape Verde',
+    'N. Ireland', 'Georgia', 'Finland', 'Ghana',
   ];
 
   /// Builds the full flat pool of selectable factors.
@@ -160,7 +160,12 @@ class FactorPool {
     List<Player>? players,
   ]) {
     final rng = random ?? Random();
-    final corpus = players ?? PlayerAttributes.all;
+    // Always validate solvability against a real corpus. An explicitly empty
+    // list (e.g. a degenerate test) falls back to the seed cache rather than
+    // producing an unchecked — and possibly unanswerable — board.
+    final corpus = (players == null || players.isEmpty)
+        ? PlayerAttributes.all
+        : players;
 
     // Reject-sample whole draws until the split obeys the axis rules and the
     // board is fully solvable against the corpus. With a large factor pool a
@@ -291,6 +296,78 @@ class FactorPool {
     final colsHaveIntl = columns.any((f) => f.isInternational);
     if (rowsHaveIntl && colsHaveIntl) return false;
 
+    // Never put Euros AND Copa America on the same board — no player can win both.
+    final allFactors = [...rows, ...columns];
+    final hasEuros = allFactors.any(
+        (f) => f.type == FactorType.wonInternational && f.value == 'Euros');
+    final hasCopa = allFactors.any(
+        (f) => f.type == FactorType.wonInternational && f.value == 'Copa America');
+    if (hasEuros && hasCopa) return false;
+
+    // Check all 9 intersections to ensure they are historically possible.
+    for (final row in rows) {
+      for (final col in columns) {
+        if (!_isCellPossible(row, col)) return false;
+      }
+    }
+
+    return true;
+  }
+
+  static bool _isCellPossible(Factor a, Factor b) {
+    if (a.type == FactorType.nationality && b.type == FactorType.wonInternational) {
+      return _canNationalityWinTournament(a.value, b.value);
+    }
+    if (b.type == FactorType.nationality && a.type == FactorType.wonInternational) {
+      return _canNationalityWinTournament(b.value, a.value);
+    }
+    return true;
+  }
+
+  /// European nationalities (eligible for Euros).
+  static const _europeanNations = {
+    'France', 'Spain', 'Germany', 'Italy', 'England', 'Portugal',
+    'Netherlands', 'Belgium', 'Croatia', 'Switzerland', 'Denmark',
+    'Austria', 'Poland', 'Sweden', 'Czechia', 'Hungary', 'Scotland',
+    'Wales', 'Serbia', 'Romania', 'Greece', 'Slovakia', 'Slovenia',
+    'Bosnia', 'Albania', 'Ireland', 'N. Ireland',
+    'Finland', 'Norway', 'Ukraine', 'Russia', 'Turkiye',
+    'Georgia',
+  };
+
+  /// South/Central/North American nationalities (eligible for Copa America).
+  static const _americanNations = {
+    'Argentina', 'Brazil', 'Uruguay', 'Colombia',
+    'Ecuador', 'Mexico', 'USA', 'Canada',
+  };
+
+  static bool _canNationalityWinTournament(String nationality, String tournament) {
+    if (tournament == 'World Cup') {
+      // Only nations that have actually won a World Cup.
+      const winners = {
+        'Argentina', 'Brazil', 'France', 'Germany',
+        'Italy', 'Spain', 'Uruguay', 'England',
+      };
+      return winners.contains(nationality);
+    }
+    if (tournament == 'Euros') {
+      // Must be European AND have actually won the Euros.
+      if (!_europeanNations.contains(nationality)) return false;
+      const winners = {
+        'Germany', 'Spain', 'Italy', 'France', 'Portugal',
+        'Netherlands', 'Denmark', 'Greece', 'Czechia', 'Russia',
+      };
+      return winners.contains(nationality);
+    }
+    if (tournament == 'Copa America') {
+      // Must be American AND have actually won the Copa.
+      if (!_americanNations.contains(nationality)) return false;
+      const winners = {
+        'Argentina', 'Brazil', 'Uruguay', 'Colombia',
+        'Chile', 'Peru', 'Paraguay',
+      };
+      return winners.contains(nationality);
+    }
     return true;
   }
 }

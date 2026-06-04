@@ -61,7 +61,17 @@ class HomeScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context)
                             .pushNamed(AppRoutes.footballXox),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
+                      _GameButton(
+                        label: '2 TEAM 1 PLAYER',
+                        icon: Icons.people_alt_rounded,
+                        color: AppColors.surface,
+                        foregroundColor: AppColors.white,
+                        borderColor: AppColors.pitchGreen,
+                        onPressed: () => Navigator.of(context)
+                            .pushNamed(AppRoutes.twoTeamOnePlayer),
+                      ),
+                      const SizedBox(height: 12),
                       _GameButton(
                         label: 'FOOTBALLDLE',
                         icon: Icons.abc_rounded,
@@ -71,7 +81,7 @@ class HomeScreen extends StatelessWidget {
                         onPressed: () => Navigator.of(context)
                             .pushNamed(AppRoutes.footballdle),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _GameButton(
                         label: '1 TEAM 1 COUNTRY',
                         icon: Icons.public_rounded,

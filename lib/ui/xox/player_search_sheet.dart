@@ -102,33 +102,33 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.78,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: AppColors.background,
-              border: Border(
-                top: BorderSide(color: AppColors.pitchGreen, width: AppTheme.borderWidth),
-              ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return DraggableScrollableSheet(
+      initialChildSize: 0.78,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            border: Border(
+              top: BorderSide(color: AppColors.pitchGreen, width: AppTheme.borderWidth),
             ),
-            child: Column(
-              children: [
-                _buildHandleAndHeader(),
-                _buildSearchField(),
-                const SizedBox(height: 8),
-                Expanded(child: _buildBody(scrollController)),
-              ],
-            ),
-          );
-        },
-      ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          // Reserve space for the keyboard so the fixed header + search field
+          // are pushed above it instead of overflowing the sheet.
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Column(
+            children: [
+              _buildHandleAndHeader(),
+              _buildSearchField(),
+              const SizedBox(height: 8),
+              Expanded(child: _buildBody(scrollController)),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -1,26 +1,22 @@
 /// App-wide runtime configuration.
 ///
-/// The API-Football key is read from a compile-time environment value so it is
-/// never committed to source. Provide it at run/build time, e.g.:
-///
-/// ```
-/// flutter run --dart-define=API_FOOTBALL_KEY=your_key_here
-/// ```
-///
-/// You can obtain a free key from https://www.api-football.com (direct
-/// dashboard) — the free plan allows 100 requests/day. When the key is empty
-/// the app stays fully navigable and the search sheet shows a clear
-/// "add API key" state instead of crashing.
+/// Player data is sourced from a self-hosted Transfermarkt API whose base URL
+/// is read from a compile-time environment value (see [transfermarktBaseUrl]).
 class AppConfig {
   AppConfig._();
 
-  /// API-Football key, injected via --dart-define (empty when unset).
-  static const String apiFootballKey =
-      String.fromEnvironment('API_FOOTBALL_KEY', defaultValue: '');
-
-  /// API-Football direct host. (If you instead use RapidAPI, swap this host
-  /// and the auth header in [ApiFootballRepository].)
-  static const String apiFootballHost = 'v3.football.api-sports.io';
-
-  static bool get hasApiKey => apiFootballKey.trim().isNotEmpty;
+  /// Base URL of the self-hosted Transfermarkt API
+  /// (https://github.com/felipeall/transfermarkt-api), the primary source for
+  /// player nationality, clubs and trophies. Run it locally with
+  /// `docker run -p 8000:8000 transfermarkt-api`, then provide the URL via:
+  ///
+  /// ```
+  /// flutter run --dart-define=TRANSFERMARKT_BASE_URL=http://10.0.2.2:8000
+  /// ```
+  ///
+  /// (Use `10.0.2.2` from an Android emulator to reach the host's localhost.)
+  static const String transfermarktBaseUrl = String.fromEnvironment(
+    'TRANSFERMARKT_BASE_URL',
+    defaultValue: 'http://localhost:8000',
+  );
 }
