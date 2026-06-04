@@ -106,6 +106,75 @@ http.Client _messiClient() {
   });
 }
 
+/// Models an academy / one-club player like Lamine Yamal: NO senior transfers
+/// (empty transfers list), current club only in the profile, La Liga title and
+/// a "European champion" (Euros) win. This is the case that previously failed
+/// "Played in La Liga" because leaguesPlayed was derived solely from transfers.
+http.Client _academyClient() {
+  return MockClient((request) async {
+    final path = request.url.path;
+    Map<String, dynamic> body;
+
+    if (path.contains('/search/')) {
+      body = {
+        'query': 'lamine',
+        'results': [
+          {
+            'id': '937958',
+            'name': 'Lamine Yamal',
+            'club': {'name': 'FC Barcelona', 'id': '131'},
+            'nationalities': ['Spain'],
+          },
+        ],
+      };
+    } else if (path.endsWith('/profile')) {
+      body = {
+        'id': '937958',
+        'name': 'Lamine Yamal',
+        'citizenship': ['Spain'],
+        'club': {
+          'id': '131',
+          'name': 'FC Barcelona',
+          'mostGamesFor': 'FC Barcelona',
+          'lastClubName': null,
+        },
+        'isRetired': false,
+      };
+    } else if (path.endsWith('/transfers')) {
+      // No senior transfers.
+      body = {'id': '937958', 'transfers': [], 'youthClubs': []};
+    } else if (path.endsWith('/achievements')) {
+      body = {
+        'id': '937958',
+        'achievements': [
+          {
+            'title': 'European champion',
+            'count': 1,
+            'details': [
+              {'season': {'id': '2024', 'name': '2024'}},
+            ],
+          },
+          {
+            'title': 'Spanish champion',
+            'count': 1,
+            'details': [
+              {
+                'season': {'id': '2024', 'name': '24/25'},
+                'competition': {'id': 'ES1', 'name': 'LaLiga'},
+                'club': {'id': '131', 'name': 'FC Barcelona'},
+              },
+            ],
+          },
+        ],
+      };
+    } else {
+      body = {};
+    }
+    return http.Response(jsonEncode(body), 200,
+        headers: {'content-type': 'application/json'});
+  });
+}
+
 void main() {
   group('TransfermarktService enrichment', () {
     test('maps nationality, clubs, league titles and international wins', () async {
@@ -162,6 +231,35 @@ void main() {
         excludeIds: {'tm-28003'},
       );
       expect(players, isEmpty);
+    });
+  });
+
+  group('TransfermarktService one-club / academy players', () {
+    test('derives team & league from profile.club when transfers are empty',
+        () async {
+      final tm = TransfermarktService(
+          client: _academyClient(), baseUrl: 'http://test');
+
+      // The exact failing case from the report: Won Euros × Played in La Liga.
+      final players = await tm.searchAndValidate(
+        query: 'lamine',
+        rowFactor: const Factor(
+            type: FactorType.wonInternational, label: 'Won Euros', value: 'Euros'),
+        columnFactor: const Factor(
+            type: FactorType.playedLeague,
+            label: 'Played in La Liga',
+            value: 'La Liga'),
+      );
+
+      expect(players, hasLength(1));
+      final p = players.single;
+      expect(p.name, 'Lamine Yamal');
+      expect(p.nationality, 'Spain');
+      expect(p.teams, contains('Barcelona'));
+      // Played-league comes from the profile club (no transfers) AND the title.
+      expect(p.leaguesPlayed, contains('La Liga'));
+      expect(p.leagueTitles, contains('La Liga'));
+      expect(p.internationalTitles, contains('Euros'));
     });
   });
 }

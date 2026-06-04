@@ -29,11 +29,15 @@ class TransfermarktService {
   final http.Client _client;
   final String _baseUrl;
 
-  /// How many search hits to enrich per query. Each enriched candidate costs
-  /// three HTTP calls (profile + transfers + achievements), so this is capped.
-  static const _maxCandidates = 8;
+  /// How many search hits to enrich per query (after cheap pre-filtering).
+  /// Each enriched candidate costs up to three HTTP calls, run in parallel.
+  static const _maxCandidates = 6;
 
-  static const _timeout = Duration(seconds: 8);
+  /// Per-request timeout.
+  static const _timeout = Duration(seconds: 5);
+
+  /// Hard ceiling on the whole search+enrich so the UI never hangs.
+  static const _overallTimeout = Duration(seconds: 12);
 
   // ─── Public API ───────────────────────────────────────────────────────
 
@@ -45,23 +49,61 @@ class TransfermarktService {
     required Factor rowFactor,
     required Factor columnFactor,
     Set<String> excludeIds = const {},
-  }) async {
+  }) {
+    // Cap the whole pipeline so a slow/unreachable server can never hang the UI.
+    return _searchAndValidate(query, rowFactor, columnFactor, excludeIds)
+        .timeout(_overallTimeout, onTimeout: () => const []);
+  }
+
+  Future<List<Player>> _searchAndValidate(
+    String query,
+    Factor rowFactor,
+    Factor columnFactor,
+    Set<String> excludeIds,
+  ) async {
     final hits = await _search(query);
     if (hits.isEmpty) return [];
 
+    // Cheap pre-filter: the search payload already carries nationality and the
+    // current club, so candidates that obviously can't satisfy a nationality or
+    // team factor are dropped BEFORE the expensive per-player enrichment.
+    final candidates = hits
+        .where((h) => !excludeIds.contains(_playerId(h.id)))
+        .where((h) => _passesCheapPrefilter(h, rowFactor, columnFactor))
+        .take(_maxCandidates)
+        .toList();
+    if (candidates.isEmpty) return [];
+
+    // Enrich the surviving candidates in parallel.
+    final enriched = await Future.wait(candidates.map(_enrich));
+
     final result = <Player>[];
     final seen = <String>{};
-    for (final hit in hits.take(_maxCandidates)) {
-      // Compare against the public player id form (matches Player.id below), so
-      // already-used players are skipped before the expensive enrichment calls.
-      if (excludeIds.contains(_playerId(hit.id))) continue;
-      final player = await _enrich(hit);
+    for (final player in enriched) {
       if (player == null) continue;
       if (rowFactor.matches(player) && columnFactor.matches(player)) {
         if (seen.add(player.id)) result.add(player);
       }
     }
     return result;
+  }
+
+  /// Returns false only when the search-result metadata already proves a
+  /// candidate cannot satisfy a factor. Conservative: when in doubt it keeps the
+  /// candidate (the full validation after enrichment is authoritative).
+  bool _passesCheapPrefilter(_SearchHit hit, Factor row, Factor col) {
+    for (final f in [row, col]) {
+      if (f.type == FactorType.nationality) {
+        // Drop only when we positively know the nationalities and none match.
+        if (hit.nationalities.isNotEmpty) {
+          final matchesNat = hit.nationalities
+              .map(_canonicalNationality)
+              .any((n) => n == f.value);
+          if (!matchesNat) return false;
+        }
+      }
+    }
+    return true;
   }
 
   /// Fetches and fully enriches a single player by Transfermarkt id. Exposed so
@@ -76,13 +118,18 @@ class TransfermarktService {
     final body = await _getJson(uri);
     if (body == null) return [];
     final results = (body['results'] as List?) ?? const [];
-    return results
-        .map((r) => _SearchHit(
-              id: (r as Map<String, dynamic>)['id']?.toString() ?? '',
-              name: r['name']?.toString() ?? '',
-            ))
-        .where((h) => h.id.isNotEmpty && h.name.isNotEmpty)
-        .toList();
+    return results.map((r) {
+      final map = r as Map<String, dynamic>;
+      final nats = (map['nationalities'] as List?)
+              ?.map((n) => n.toString())
+              .toList() ??
+          const <String>[];
+      return _SearchHit(
+        id: map['id']?.toString() ?? '',
+        name: map['name']?.toString() ?? '',
+        nationalities: nats,
+      );
+    }).where((h) => h.id.isNotEmpty && h.name.isNotEmpty).toList();
   }
 
   // ─── Enrichment ───────────────────────────────────────────────────────
@@ -91,16 +138,19 @@ class TransfermarktService {
   static String _playerId(String transfermarktId) => 'tm-$transfermarktId';
 
   Future<Player?> _enrich(_SearchHit hit) async {
-    final profile = await _getJson(Uri.parse('$_baseUrl/players/${hit.id}/profile'));
+    // Fetch the three endpoints concurrently rather than in series.
+    final responses = await Future.wait([
+      _getJson(Uri.parse('$_baseUrl/players/${hit.id}/profile')),
+      _getJson(Uri.parse('$_baseUrl/players/${hit.id}/transfers')),
+      _getJson(Uri.parse('$_baseUrl/players/${hit.id}/achievements')),
+    ]);
+    final profile = responses[0];
     if (profile == null) return null;
-
-    final transfers =
-        await _getJson(Uri.parse('$_baseUrl/players/${hit.id}/transfers'));
-    final achievements =
-        await _getJson(Uri.parse('$_baseUrl/players/${hit.id}/achievements'));
+    final transfers = responses[1];
+    final achievements = responses[2];
 
     final nationality = _mapNationality(profile);
-    final teams = _mapTeams(transfers);
+    final teams = _mapTeams(transfers, profile);
     final titles = _mapAchievements(achievements);
 
     return Player(
@@ -108,7 +158,8 @@ class TransfermarktService {
       name: hit.name,
       nationality: nationality,
       photoUrl: profile['imageUrl']?.toString(),
-      leaguesPlayed: _leaguesFromTeams(teams),
+      // A won league was necessarily played in, so titles widen leaguesPlayed.
+      leaguesPlayed: _leaguesFromTeams(teams)..addAll(titles.leagues),
       leagueTitles: titles.leagues,
       internationalTitles: titles.international,
       teams: teams,
@@ -126,18 +177,35 @@ class TransfermarktService {
     return citizenship.isNotEmpty ? citizenship.first.toString() : '';
   }
 
-  /// Union of every club a player transferred from/to, mapped to canonical
-  /// FactorPool team names.
-  Set<String> _mapTeams(Map<String, dynamic>? transfers) {
+  /// Every club a player is associated with, mapped to canonical FactorPool
+  /// team names. Drawn from the transfer history AND the profile's current /
+  /// most-played / last club — so one-club or academy players (no senior
+  /// transfers, e.g. Lamine Yamal) still resolve their team and league.
+  Set<String> _mapTeams(
+    Map<String, dynamic>? transfers,
+    Map<String, dynamic> profile,
+  ) {
     final teams = <String>{};
-    if (transfers == null) return teams;
-    for (final t in (transfers['transfers'] as List?) ?? const []) {
+
+    void add(String? clubName) {
+      if (clubName == null || clubName.isEmpty) return;
+      final canonical = _canonicalTeam(clubName);
+      if (canonical != null) teams.add(canonical);
+    }
+
+    // Profile clubs (present even when the transfer list is empty).
+    final club = profile['club'] as Map<String, dynamic>?;
+    if (club != null) {
+      add(club['name']?.toString());
+      add(club['mostGamesFor']?.toString());
+      add(club['lastClubName']?.toString());
+    }
+
+    // Transfer history.
+    for (final t in (transfers?['transfers'] as List?) ?? const []) {
       final map = t as Map<String, dynamic>;
       for (final side in ['clubFrom', 'clubTo']) {
-        final name = (map[side] as Map<String, dynamic>?)?['name']?.toString();
-        if (name == null) continue;
-        final canonical = _canonicalTeam(name);
-        if (canonical != null) teams.add(canonical);
+        add((map[side] as Map<String, dynamic>?)?['name']?.toString());
       }
     }
     return teams;
@@ -154,9 +222,12 @@ class TransfermarktService {
       final title = (map['title']?.toString() ?? '').toLowerCase();
 
       // International tournaments are identified by the achievement title.
+      // Transfermarkt labels the Euros win "European champion" (or "European
+      // Championship"); guard against the club "UEFA Europa League".
       if (title.contains('world cup')) international.add('World Cup');
-      if (title.contains('european championship') ||
-          (title.contains('euro') && !title.contains('europa'))) {
+      if ((title.contains('european champion') ||
+              title.contains('european championship')) &&
+          !title.contains('europa')) {
         international.add('Euros');
       }
       if (title.contains('copa américa') || title.contains('copa america')) {
@@ -426,9 +497,16 @@ class TransfermarktService {
 
 /// A lightweight search hit before enrichment.
 class _SearchHit {
-  const _SearchHit({required this.id, required this.name});
+  const _SearchHit({
+    required this.id,
+    required this.name,
+    this.nationalities = const [],
+  });
   final String id;
   final String name;
+
+  /// Nationalities from the search payload, used for cheap pre-filtering.
+  final List<String> nationalities;
 }
 
 /// Parsed trophy sets.

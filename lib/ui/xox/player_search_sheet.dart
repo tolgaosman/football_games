@@ -85,12 +85,25 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
       return;
     }
     setState(() => _loading = true);
-    final result = await widget.repository.searchValid(
-      query: query,
-      rowFactor: widget.rowFactor,
-      columnFactor: widget.columnFactor,
-      excludeIds: widget.excludeIds,
-    );
+    SearchResult result;
+    try {
+      result = await widget.repository
+          .searchValid(
+            query: query,
+            rowFactor: widget.rowFactor,
+            columnFactor: widget.columnFactor,
+            excludeIds: widget.excludeIds,
+          )
+          // Safety net so a hung/unreachable player service can never leave the
+          // spinner spinning forever.
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {
+      result = const SearchResult(
+        status: SearchStatus.error,
+        players: [],
+        message: 'Search timed out. Check the connection and try again.',
+      );
+    }
     // Ignore stale responses from earlier keystrokes.
     if (!mounted || id != _requestId) return;
     setState(() {

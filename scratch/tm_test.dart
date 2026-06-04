@@ -49,6 +49,13 @@ Future<void> main(List<String> args) async {
       const Factor(
           type: FactorType.nationality, label: 'Poland', value: 'Poland'),
     ],
+    // Academy / one-club player — the reported failing case.
+    'Lamine Yamal': [
+      const Factor(
+          type: FactorType.wonInternational, label: 'Won Euros', value: 'Euros'),
+      const Factor(
+          type: FactorType.playedLeague, label: 'La Liga', value: 'La Liga'),
+    ],
   };
 
   for (final entry in cases.entries) {
