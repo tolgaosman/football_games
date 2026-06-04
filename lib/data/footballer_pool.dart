@@ -26,6 +26,8 @@ class FootballerPool {
   static const _worldCup = 'World Cup';
   static const _euros = 'Euros';
   static const _copa = 'Copa America';
+  static const _cl = 'Champions League';
+  static const _el = 'Europa League';
 
   /// All footballers, keyed by lowercase display name.
   static final Map<String, Player> _byName = _buildIndex(_players);
@@ -42,6 +44,7 @@ class FootballerPool {
       nationality: 'Norway',
       leaguesPlayed: {_bundesliga, _epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Borussia Dortmund', 'Manchester City'},
     ),
     Player(
@@ -50,6 +53,7 @@ class FootballerPool {
       nationality: 'Belgium',
       leaguesPlayed: {_epl, _bundesliga},
       leagueTitles: {_epl, _bundesliga},
+      internationalTitles: {_cl},
       teams: {'Manchester City', 'Chelsea', 'VfL Wolfsburg'},
     ),
     Player(
@@ -58,6 +62,7 @@ class FootballerPool {
       nationality: 'England',
       leaguesPlayed: {_epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Manchester City'},
     ),
     Player(
@@ -66,7 +71,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga, _epl},
       leagueTitles: {_epl},
-      internationalTitles: {_euros},
+      internationalTitles: {_euros, _cl},
       teams: {'Atletico Madrid', 'Villarreal', 'Manchester City'},
     ),
     Player(
@@ -75,6 +80,7 @@ class FootballerPool {
       nationality: 'Portugal',
       leaguesPlayed: {_ligue1, _epl},
       leagueTitles: {_ligue1, _epl},
+      internationalTitles: {_cl},
       teams: {'Monaco', 'Manchester City'},
     ),
     Player(
@@ -83,6 +89,7 @@ class FootballerPool {
       nationality: 'Germany',
       leaguesPlayed: {_bundesliga, _epl, _laLiga},
       leagueTitles: {_bundesliga, _epl, _laLiga},
+      internationalTitles: {_cl},
       teams: {'Borussia Dortmund', 'Manchester City', 'Barcelona'},
     ),
     Player(
@@ -91,6 +98,7 @@ class FootballerPool {
       nationality: 'England',
       leaguesPlayed: {_epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Tottenham Hotspur', 'Manchester City'},
     ),
     Player(
@@ -99,6 +107,7 @@ class FootballerPool {
       nationality: 'Argentina',
       leaguesPlayed: {_laLiga, _epl},
       leagueTitles: {_epl},
+      internationalTitles: {_el},
       teams: {'Atletico Madrid', 'Manchester City', 'Barcelona'},
     ),
     Player(
@@ -142,6 +151,7 @@ class FootballerPool {
       nationality: 'England',
       leaguesPlayed: {_epl},
       leagueTitles: {},
+      internationalTitles: {_el},
       teams: {'Manchester United'},
     ),
     Player(
@@ -150,6 +160,7 @@ class FootballerPool {
       nationality: 'Brazil',
       leaguesPlayed: {_laLiga, _epl},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl},
       teams: {'Real Madrid', 'Manchester United'},
     ),
     Player(
@@ -158,6 +169,7 @@ class FootballerPool {
       nationality: 'England',
       leaguesPlayed: {_epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Everton', 'Manchester United'},
     ),
     Player(
@@ -208,6 +220,7 @@ class FootballerPool {
       nationality: 'Egypt',
       leaguesPlayed: {_serieA, _epl, _laLiga},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Chelsea', 'Roma', 'Fiorentina', 'Liverpool'},
     ),
     Player(
@@ -224,6 +237,7 @@ class FootballerPool {
       nationality: 'Senegal',
       leaguesPlayed: {_epl, _bundesliga},
       leagueTitles: {_epl, _bundesliga},
+      internationalTitles: {_cl},
       teams: {'Liverpool', 'Bayern Munich'},
     ),
     Player(
@@ -232,7 +246,7 @@ class FootballerPool {
       nationality: 'Brazil',
       leaguesPlayed: {_serieA, _epl},
       leagueTitles: {_epl},
-      internationalTitles: {_copa},
+      internationalTitles: {_copa, _cl},
       teams: {'Roma', 'Liverpool'},
     ),
     Player(
@@ -241,6 +255,7 @@ class FootballerPool {
       nationality: 'Brazil',
       leaguesPlayed: {_bundesliga, _epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'TSG Hoffenheim', 'Liverpool'},
     ),
     Player(
@@ -363,7 +378,7 @@ class FootballerPool {
       nationality: 'France',
       leaguesPlayed: {_ligue1, _epl},
       leagueTitles: {_epl},
-      internationalTitles: {_worldCup},
+      internationalTitles: {_worldCup, _cl, _el},
       teams: {'Chelsea', 'Leicester City'},
     ),
     Player(
@@ -380,7 +395,7 @@ class FootballerPool {
       nationality: 'Italy',
       leaguesPlayed: {_serieA, _epl},
       leagueTitles: {},
-      internationalTitles: {_euros},
+      internationalTitles: {_euros, _el},
       teams: {'Napoli', 'Chelsea', 'Arsenal'},
     ),
     Player(
@@ -415,6 +430,7 @@ class FootballerPool {
       nationality: 'Croatia',
       leaguesPlayed: {_epl, _laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl},
       teams: {'Tottenham Hotspur', 'Real Madrid'},
     ),
     Player(
@@ -423,6 +439,7 @@ class FootballerPool {
       nationality: 'Wales',
       leaguesPlayed: {_epl, _laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl},
       teams: {'Tottenham Hotspur', 'Real Madrid'},
     ),
 
@@ -449,6 +466,7 @@ class FootballerPool {
       nationality: 'Algeria',
       leaguesPlayed: {_ligue1, _epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Leicester City', 'Manchester City'},
     ),
     Player(
@@ -479,7 +497,7 @@ class FootballerPool {
       nationality: 'Argentina',
       leaguesPlayed: {_laLiga, _ligue1},
       leagueTitles: {_laLiga, _ligue1},
-      internationalTitles: {_worldCup, _copa},
+      internationalTitles: {_worldCup, _copa, _cl},
       teams: {'Barcelona', 'PSG'},
     ),
     Player(
@@ -488,7 +506,7 @@ class FootballerPool {
       nationality: 'Portugal',
       leaguesPlayed: {_epl, _laLiga, _serieA},
       leagueTitles: {_epl, _laLiga, _serieA},
-      internationalTitles: {_euros},
+      internationalTitles: {_euros, _cl},
       teams: {'Manchester United', 'Real Madrid', 'Juventus'},
     ),
     Player(
@@ -497,6 +515,7 @@ class FootballerPool {
       nationality: 'France',
       leaguesPlayed: {_ligue1, _laLiga},
       leagueTitles: {_ligue1, _laLiga},
+      internationalTitles: {_cl},
       teams: {'Lyon', 'Real Madrid'},
     ),
     Player(
@@ -505,6 +524,7 @@ class FootballerPool {
       nationality: 'Brazil',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl},
       teams: {'Real Madrid'},
     ),
     Player(
@@ -513,6 +533,7 @@ class FootballerPool {
       nationality: 'England',
       leaguesPlayed: {_bundesliga, _laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl},
       teams: {'Borussia Dortmund', 'Real Madrid'},
     ),
     Player(
@@ -521,7 +542,7 @@ class FootballerPool {
       nationality: 'Germany',
       leaguesPlayed: {_bundesliga, _laLiga},
       leagueTitles: {_bundesliga, _laLiga},
-      internationalTitles: {_worldCup},
+      internationalTitles: {_worldCup, _cl},
       teams: {'Bayern Munich', 'Real Madrid'},
     ),
     Player(
@@ -539,6 +560,7 @@ class FootballerPool {
       nationality: 'Belgium',
       leaguesPlayed: {_laLiga, _epl},
       leagueTitles: {_laLiga, _epl},
+      internationalTitles: {_cl},
       teams: {'Atletico Madrid', 'Chelsea', 'Real Madrid'},
     ),
     Player(
@@ -592,6 +614,7 @@ class FootballerPool {
       nationality: 'Poland',
       leaguesPlayed: {_bundesliga, _laLiga},
       leagueTitles: {_bundesliga, _laLiga},
+      internationalTitles: {_cl},
       teams: {'Borussia Dortmund', 'Bayern Munich', 'Barcelona'},
     ),
     Player(
@@ -653,7 +676,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
-      internationalTitles: {_worldCup, _euros},
+      internationalTitles: {_worldCup, _euros, _cl},
       teams: {'Barcelona'},
     ),
     Player(
@@ -662,7 +685,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_epl, _laLiga},
       leagueTitles: {_epl, _laLiga},
-      internationalTitles: {_worldCup, _euros},
+      internationalTitles: {_worldCup, _euros, _cl},
       teams: {'Manchester United', 'Barcelona'},
     ),
     Player(
@@ -671,6 +694,7 @@ class FootballerPool {
       nationality: 'Brazil',
       leaguesPlayed: {_laLiga, _ligue1},
       leagueTitles: {_laLiga, _ligue1},
+      internationalTitles: {_cl},
       teams: {'Barcelona', 'PSG'},
     ),
     Player(
@@ -706,7 +730,7 @@ class FootballerPool {
       nationality: 'France',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
-      internationalTitles: {_worldCup},
+      internationalTitles: {_worldCup, _el},
       teams: {'Real Sociedad', 'Atletico Madrid', 'Barcelona'},
     ),
     Player(
@@ -715,6 +739,7 @@ class FootballerPool {
       nationality: 'Slovenia',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_el},
       teams: {'Benfica', 'Atletico Madrid'},
     ),
     Player(
@@ -723,6 +748,7 @@ class FootballerPool {
       nationality: 'Uruguay',
       leaguesPlayed: {_laLiga, _serieA},
       leagueTitles: {_laLiga},
+      internationalTitles: {_el},
       teams: {'Villarreal', 'Atletico Madrid', 'Inter Milan'},
     ),
     Player(
@@ -731,6 +757,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_el},
       teams: {'Atletico Madrid'},
     ),
 
@@ -758,6 +785,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl},
       teams: {'Real Madrid', 'Sevilla', 'Real Betis'},
     ),
     Player(
@@ -766,6 +794,7 @@ class FootballerPool {
       nationality: 'Croatia',
       leaguesPlayed: {_bundesliga, _laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_el},
       teams: {'Schalke 04', 'Sevilla', 'Barcelona'},
     ),
     Player(
@@ -798,7 +827,7 @@ class FootballerPool {
       nationality: 'Germany',
       leaguesPlayed: {_bundesliga},
       leagueTitles: {_bundesliga},
-      internationalTitles: {_worldCup},
+      internationalTitles: {_worldCup, _cl},
       teams: {'Schalke 04', 'Bayern Munich'},
     ),
     Player(
@@ -807,6 +836,7 @@ class FootballerPool {
       nationality: 'Germany',
       leaguesPlayed: {_bundesliga},
       leagueTitles: {_bundesliga},
+      internationalTitles: {_cl},
       teams: {'RB Leipzig', 'Bayern Munich'},
     ),
     Player(
@@ -831,6 +861,7 @@ class FootballerPool {
       nationality: 'Canada',
       leaguesPlayed: {_bundesliga},
       leagueTitles: {_bundesliga},
+      internationalTitles: {_cl},
       teams: {'Bayern Munich'},
     ),
     Player(
@@ -855,6 +886,7 @@ class FootballerPool {
       nationality: 'Austria',
       leaguesPlayed: {_bundesliga, _laLiga},
       leagueTitles: {_bundesliga, _laLiga},
+      internationalTitles: {_cl},
       teams: {'Bayern Munich', 'Real Madrid'},
     ),
     Player(
@@ -967,7 +999,7 @@ class FootballerPool {
       nationality: 'France',
       leaguesPlayed: {_epl, _serieA},
       leagueTitles: {_serieA},
-      internationalTitles: {_worldCup},
+      internationalTitles: {_worldCup, _el},
       teams: {'Manchester United', 'Juventus'},
     ),
     Player(
@@ -1156,6 +1188,7 @@ class FootballerPool {
       nationality: 'Morocco',
       leaguesPlayed: {_laLiga, _bundesliga, _serieA, _ligue1},
       leagueTitles: {_serieA, _ligue1},
+      internationalTitles: {_cl},
       teams: {'Real Madrid', 'Borussia Dortmund', 'Inter Milan', 'PSG'},
     ),
 
@@ -1443,6 +1476,7 @@ class FootballerPool {
       nationality: 'France',
       leaguesPlayed: {_laLiga},
       leagueTitles: {_laLiga},
+      internationalTitles: {_el},
       teams: {'Sevilla', 'Barcelona'},
     ),
     Player(
@@ -1547,6 +1581,7 @@ class FootballerPool {
       nationality: 'Japan',
       leaguesPlayed: {_bundesliga, _laLiga, _epl},
       leagueTitles: {},
+      internationalTitles: {_el},
       teams: {'Eintracht Frankfurt', 'Real Sociedad', 'Crystal Palace'},
     ),
     Player(
@@ -1597,6 +1632,7 @@ class FootballerPool {
       nationality: 'Scotland',
       leaguesPlayed: {_epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Hull City', 'Liverpool'},
     ),
     Player(
@@ -1725,6 +1761,7 @@ class FootballerPool {
       nationality: 'USA',
       leaguesPlayed: {_bundesliga, _epl, _serieA},
       leagueTitles: {_bundesliga, _serieA},
+      internationalTitles: {_cl},
       teams: {'Borussia Dortmund', 'Chelsea', 'AC Milan'},
     ),
     Player(
@@ -2125,6 +2162,7 @@ class FootballerPool {
       nationality: 'Switzerland',
       leaguesPlayed: {_bundesliga, _epl},
       leagueTitles: {_epl},
+      internationalTitles: {_cl},
       teams: {'Borussia Dortmund', 'Manchester City'},
     ),
     Player(
@@ -2285,6 +2323,7 @@ class FootballerPool {
       nationality: 'Brazil',
       leaguesPlayed: {_ligue1, _epl},
       leagueTitles: {_ligue1, _epl},
+      internationalTitles: {_cl},
       teams: {'Monaco', 'Liverpool'},
     ),
     Player(
@@ -2293,6 +2332,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga, _epl},
       leagueTitles: {_laLiga},
+      internationalTitles: {_cl, _el},
       teams: {'Athletic Bilbao', 'Chelsea', 'Real Madrid'},
     ),
     Player(
@@ -2301,7 +2341,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga, _serieA, _epl, _superLig},
       leagueTitles: {_laLiga, _serieA, _epl},
-      internationalTitles: {_euros},
+      internationalTitles: {_euros, _cl},
       teams: {'Real Madrid', 'Juventus', 'Chelsea', 'Atletico Madrid', 'AC Milan', 'Galatasaray'},
     ),
     Player(
@@ -2318,6 +2358,7 @@ class FootballerPool {
       nationality: 'Spain',
       leaguesPlayed: {_laLiga, _ligue1},
       leagueTitles: {_laLiga, _ligue1},
+      internationalTitles: {_cl},
       teams: {'Real Madrid', 'PSG'},
     ),
     Player(

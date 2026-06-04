@@ -1,13 +1,13 @@
 import 'dart:math';
 
-import '../../data/footballer_pool.dart';
+import '../../data/player_attributes.dart';
 import '../../data/player.dart';
 import '../xox/factor_pool.dart';
 
 /// Pure game logic for **2 Team 1 Player**.
 ///
 /// Two clubs are drawn from [FactorPool.teams]; the "answer" to a round is the
-/// set of footballers in [FootballerPool] who played for BOTH clubs. All data is
+/// set of footballers in [PlayerAttributes] who played for BOTH clubs. All data is
 /// local — there is no network layer.
 class TwoTeamGame {
   TwoTeamGame._();
@@ -17,7 +17,7 @@ class TwoTeamGame {
 
   /// Footballers who played for BOTH [teamA] and [teamB], sorted by name.
   static List<Player> sharedPlayers(String teamA, String teamB) {
-    final result = FootballerPool.all
+    final result = PlayerAttributes.all
         .where((p) => p.teams.contains(teamA) && p.teams.contains(teamB))
         .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

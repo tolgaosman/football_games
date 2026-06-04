@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../data/api_football_repository.dart';
+import '../data/footballer_pool.dart';
+import '../data/player.dart';
+import '../data/player_database.dart';
 import '../data/player_repository.dart';
+import '../data/sqlite_player_repository.dart';
 import '../game/xox/factor.dart';
 import '../game/xox/xox_cell.dart';
 import '../game/xox/xox_game.dart';
@@ -33,12 +36,13 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
   late PlayerRepository _repository;
   late XoxGame _game;
 
-  @override
-  void initState() {
-    super.initState();
-    _repository = widget.repository ?? TransfermarktRepository();
-    _game = XoxGame.newMatch();
-  }
+  /// The full player corpus, loaded once from the DB and reused for every new
+  /// match so board solvability is validated against real data.
+  List<Player> _corpus = const [];
+
+  /// True while the database is being opened and the corpus loaded. The board
+  /// is only built once this is false, so [_game] is always set by then.
+  bool _loading = true;
 
   Future<void> _onCellTapped(int row, int col) async {
     if (_game.isOver || _game.cellAt(row, col).isFilled) return;
@@ -62,8 +66,36 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
     }
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.repository ?? SqlitePlayerRepository();
+    _load();
+  }
+
+  /// Opens the player database, loads the corpus and starts the first match.
+  /// The corpus is fed to board generation so every cell has a real answer.
+  ///
+  /// If the database can't be opened (e.g. asset unavailable in a test), it
+  /// falls back to the curated [FootballerPool] — the same data the DB is built
+  /// from — so the board still generates and the game stays playable.
+  Future<void> _load() async {
+    List<Player> corpus;
+    try {
+      corpus = await PlayerDatabase.instance.loadAllPlayers();
+    } catch (_) {
+      corpus = FootballerPool.all;
+    }
+    if (!mounted) return;
+    setState(() {
+      _corpus = corpus;
+      _game = XoxGame.newMatch(players: corpus);
+      _loading = false;
+    });
+  }
+
   void _newGame() {
-    setState(() => _game = XoxGame.newMatch());
+    setState(() => _game = XoxGame.newMatch(players: _corpus));
   }
 
   @override
@@ -85,25 +117,32 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _StatusBar(game: _game),
-              const SizedBox(height: 16),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Center(child: _buildBoard(constraints));
-                  },
-                ),
-              ),
-              if (_game.isOver) ...[
-                const SizedBox(height: 12),
-                _ResultBanner(game: _game, onPlayAgain: _newGame),
-              ],
-            ],
-          ),
+          child: _buildBody(),
         ),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: [
+        _StatusBar(game: _game),
+        const SizedBox(height: 16),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Center(child: _buildBoard(constraints));
+            },
+          ),
+        ),
+        if (_game.isOver) ...[
+          const SizedBox(height: 12),
+          _ResultBanner(game: _game, onPlayAgain: _newGame),
+        ],
+      ],
     );
   }
 
@@ -214,13 +253,12 @@ class _StatusBar extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              text,
-              style: AppTheme.heading(18, color: color),
-            ),
+            child: Text(text, style: AppTheme.heading(18, color: color)),
           ),
-          Text('${game.filledCount}/9',
-              style: AppTheme.label(14, color: AppColors.whiteMuted)),
+          Text(
+            '${game.filledCount}/9',
+            style: AppTheme.label(14, color: AppColors.whiteMuted),
+          ),
         ],
       ),
     );
@@ -333,8 +371,11 @@ class _GridCell extends StatelessWidget {
                 player.name,
                 textAlign: TextAlign.center,
                 maxLines: 3,
-                style: AppTheme.label(12,
-                    color: AppColors.white, weight: FontWeight.w700),
+                style: AppTheme.label(
+                  12,
+                  color: AppColors.white,
+                  weight: FontWeight.w700,
+                ),
               ),
             ),
           ),

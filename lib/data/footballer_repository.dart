@@ -1,9 +1,9 @@
 import '../game/xox/factor.dart';
-import 'footballer_pool.dart';
+import 'player_attributes.dart';
 import 'player.dart';
 import 'player_repository.dart';
 
-/// A fully local [PlayerRepository] backed by the hardcoded [FootballerPool].
+/// A fully local [PlayerRepository] backed by the hardcoded [PlayerAttributes].
 ///
 /// There is no network layer: searches run entirely against the offline pool,
 /// so the game works without any external service. "Block at search": every
@@ -32,7 +32,7 @@ class FootballerRepository implements PlayerRepository {
     final matches = <Player>[];
     final seenIds = <String>{};
 
-    for (final p in FootballerPool.all) {
+    for (final p in PlayerAttributes.all) {
       if (!p.name.toLowerCase().contains(q)) continue;
       if (excludeIds.contains(p.id)) continue;
       if (!rowFactor.matches(p) || !columnFactor.matches(p)) continue;

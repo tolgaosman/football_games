@@ -25,36 +25,64 @@ Future<void> main(List<String> args) async {
   final cases = <String, List<Factor>>{
     'Messi': [
       const Factor(
-          type: FactorType.nationality, label: 'Argentina', value: 'Argentina'),
+        type: FactorType.nationality,
+        label: 'Argentina',
+        value: 'Argentina',
+      ),
       const Factor(
-          type: FactorType.playedLeague, label: 'La Liga', value: 'La Liga'),
+        type: FactorType.playedLeague,
+        label: 'La Liga',
+        value: 'La Liga',
+      ),
     ],
     'Ronaldo': [
       const Factor(
-          type: FactorType.team, label: 'Real Madrid', value: 'Real Madrid'),
+        type: FactorType.team,
+        label: 'Real Madrid',
+        value: 'Real Madrid',
+      ),
       const Factor(
-          type: FactorType.wonInternational, label: 'Euros', value: 'Euros'),
+        type: FactorType.wonInternational,
+        label: 'Euros',
+        value: 'Euros',
+      ),
     ],
     'Kane': [
       const Factor(
-          type: FactorType.playedLeague,
-          label: 'Premier League',
-          value: 'Premier League'),
+        type: FactorType.playedLeague,
+        label: 'Premier League',
+        value: 'Premier League',
+      ),
       const Factor(
-          type: FactorType.nationality, label: 'England', value: 'England'),
+        type: FactorType.nationality,
+        label: 'England',
+        value: 'England',
+      ),
     ],
     'Lewandowski': [
       const Factor(
-          type: FactorType.wonLeague, label: 'Won Bundesliga', value: 'Bundesliga'),
+        type: FactorType.wonLeague,
+        label: 'Won Bundesliga',
+        value: 'Bundesliga',
+      ),
       const Factor(
-          type: FactorType.nationality, label: 'Poland', value: 'Poland'),
+        type: FactorType.nationality,
+        label: 'Poland',
+        value: 'Poland',
+      ),
     ],
     // Academy / one-club player — the reported failing case.
     'Lamine Yamal': [
       const Factor(
-          type: FactorType.wonInternational, label: 'Won Euros', value: 'Euros'),
+        type: FactorType.wonInternational,
+        label: 'Won Euros',
+        value: 'Euros',
+      ),
       const Factor(
-          type: FactorType.playedLeague, label: 'La Liga', value: 'La Liga'),
+        type: FactorType.playedLeague,
+        label: 'La Liga',
+        value: 'La Liga',
+      ),
     ],
   };
 
@@ -70,8 +98,10 @@ Future<void> main(List<String> args) async {
     );
     print('  matched: ${players.length}');
     for (final p in players) {
-      print('    ${p.name} | nat=${p.nationality} | leagues=${p.leaguesPlayed} '
-          '| titles=${p.leagueTitles} | teams=${p.teams} | intl=${p.internationalTitles}');
+      print(
+        '    ${p.name} | nat=${p.nationality} | leagues=${p.leaguesPlayed} '
+        '| titles=${p.leagueTitles} | teams=${p.teams} | intl=${p.internationalTitles}',
+      );
     }
   }
 }

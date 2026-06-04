@@ -70,6 +70,8 @@ class FactorArtResolver {
     'World Cup': 'assets/images/worldCup.png',
     'Euros': 'assets/images/euros.png',
     'Copa America': 'assets/images/copaAmerica.png',
+    'Champions League': 'assets/images/championsLeague.png',
+    'Europa League': 'assets/images/europaLeague.png',
   };
 
   /// League badge asset paths (user-supplied), keyed by canonical league name.

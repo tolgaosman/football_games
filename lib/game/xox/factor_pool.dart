@@ -1,7 +1,7 @@
 import 'dart:math';
 
+import '../../data/footballer_pool.dart';
 import '../../data/player.dart';
-import '../../data/player_attributes.dart';
 import 'board_solver.dart';
 import 'factor.dart';
 
@@ -23,11 +23,13 @@ class FactorPool {
     'Trendyol Süper Lig',
   ];
 
-  /// International tournaments.
+  /// The five international / continental tournaments.
   static const List<String> internationalTournaments = [
     'World Cup',
-    'Copa America',
     'Euros',
+    'Copa America',
+    'Champions League',
+    'Europa League',
   ];
 
   /// Major clubs drawn from the six leagues above.
@@ -160,11 +162,12 @@ class FactorPool {
     List<Player>? players,
   ]) {
     final rng = random ?? Random();
-    // Always validate solvability against a real corpus. An explicitly empty
-    // list (e.g. a degenerate test) falls back to the seed cache rather than
-    // producing an unchecked — and possibly unanswerable — board.
+    // Always validate solvability against a real corpus. When no corpus is
+    // supplied (e.g. before the SQLite DB has loaded, or a degenerate test),
+    // fall back to the curated FootballerPool — the same data the DB is built
+    // from — rather than producing an unchecked, possibly unanswerable board.
     final corpus = (players == null || players.isEmpty)
-        ? PlayerAttributes.all
+        ? FootballerPool.all
         : players;
 
     // Reject-sample whole draws until the split obeys the axis rules and the
@@ -204,7 +207,7 @@ class FactorPool {
     Random rng,
     List<Player> corpus,
   ) {
-    final pool = corpus.isEmpty ? PlayerAttributes.all : corpus;
+    final pool = corpus.isEmpty ? FootballerPool.all : corpus;
 
     // Filter players who satisfy at least 6 factors from the current pool
     final validAnchors = pool.where((player) {

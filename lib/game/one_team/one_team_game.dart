@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import '../../data/footballer_pool.dart';
+import '../../data/player_attributes.dart';
 import '../../data/player.dart';
 import '../xox/factor_pool.dart';
 
@@ -8,7 +8,7 @@ import '../xox/factor_pool.dart';
 ///
 /// One club is drawn from [FactorPool.teams] and one nationality from
 /// [FactorPool.nationalities]; the "answer" to a round is the set of footballers
-/// in [FootballerPool] who played for that club AND hold that nationality. All
+/// in [PlayerAttributes] who played for that club AND hold that nationality. All
 /// data is local — there is no network layer.
 class OneTeamGame {
   OneTeamGame._();
@@ -21,7 +21,7 @@ class OneTeamGame {
 
   /// Footballers who played for [team] and hold [nationality], sorted by name.
   static List<Player> matchingPlayers(String team, String nationality) {
-    final result = FootballerPool.all
+    final result = PlayerAttributes.all
         .where((p) => p.teams.contains(team) && p.nationality == nationality)
         .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
