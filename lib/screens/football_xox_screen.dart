@@ -39,6 +39,7 @@ class FootballXoxScreen extends StatefulWidget {
 
 class _FootballXoxScreenState extends State<FootballXoxScreen> {
   late XoxGame _game;
+  int _matchId = 0;
 
   /// The full player corpus, loaded once from the DB and reused for every new
   /// match so board solvability is validated against real data.
@@ -109,16 +110,20 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
         playerXName: widget.playerXName,
         playerOName: widget.playerOName,
       );
+      _matchId++;
       _loading = false;
     });
   }
 
   void _newGame() {
-    setState(() => _game = XoxGame.newMatch(
-      players: _corpus,
-      playerXName: widget.playerXName,
-      playerOName: widget.playerOName,
-    ));
+    setState(() {
+      _game = XoxGame.newMatch(
+        players: _corpus,
+        playerXName: widget.playerXName,
+        playerOName: widget.playerOName,
+      );
+      _matchId++;
+    });
   }
 
   @override
@@ -163,7 +168,7 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
               return Center(
                 child: FadeSlideIn(
                   // Re-key per match so the entrance replays on "New game".
-                  key: ValueKey(_game.hashCode),
+                  key: ValueKey(_matchId),
                   child: _buildBoard(constraints),
                 ),
               );
@@ -173,7 +178,7 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
         if (_game.isOver) ...[
           const SizedBox(height: AppSpacing.md),
           FadeSlideIn(
-            key: ValueKey('result-${_game.hashCode}'),
+            key: ValueKey('result-$_matchId'),
             child: _ResultBanner(game: _game, onPlayAgain: _newGame),
           ),
         ],

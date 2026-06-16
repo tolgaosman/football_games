@@ -11,8 +11,9 @@ Space Grotesk via `google_fonts`).
 
 Three games exist; only the first is fully implemented:
 - **Football XOX** — fully built. A 3×3 trivia grid; each row/column gets a
-  random unique factor (category) and each cell needs a footballer satisfying
-  BOTH the row and column factor.
+  random unique factor (category). **Currently in Game Master Mode**: designed for
+  in-person social play. Users tap cells to instantly claim them (bypassing in-app
+  search/validation), and can long-press a cell to reveal valid offline answers.
 - **Footballdle** and **1 Team 1 Country** — "Coming Soon" placeholders.
 
 ## Commands
@@ -77,28 +78,14 @@ lib/
   ui/xox/player_search_sheet.dart # modal search bottom sheet
 ```
 
-### The key design decision: search + validation from Transfermarkt
-A footballer's leagues, clubs, nationality and **trophies** all come from the
-Transfermarkt API ([transfermarkt_service.dart](lib/data/transfermarkt_service.dart)):
+### The key design decision: Game Master Mode & Offline Solvability
+The Football XOX game operates as a **Game Master** social-play board:
 
-- **Search** `/players/search/{name}` finds real players (incl. retired).
-- **Enrich** each candidate from `/profile` (nationality + current club),
-  `/transfers` (clubs played for) and `/achievements` (league titles +
-  international wins), mapped to `FactorPool` canonical names. Endpoints are
-  fetched in parallel; candidates are cheap-prefiltered before enrichment.
-- **Validate**: `Factor.matches` checks the resulting structured sets.
-
-Notes that bit us before, keep in mind:
-- `leaguesPlayed` is derived from clubs (transfers **and** `profile.club`,
-  `mostGamesFor`, `lastClubName`) **plus** won league titles — so one-club /
-  academy players (no senior transfers, e.g. Lamine Yamal) still resolve.
-- The Euros win is labelled "European champion(ship)"; exclude "Europa".
-
-This is "block at search": [PlayerRepository.searchValid](lib/data/player_repository.dart)
-only ever returns players valid for BOTH factors, so anything the user can tap is
-a legal answer. `PlayerRepository` is abstract, so the data source can be swapped
-without touching UI. [player_attributes.dart](lib/data/player_attributes.dart) is
-a curated **local cache** that guarantees offline board solvability (see below).
+- **Instant Claiming**: Tapping a cell instantly assigns it to the current player (X or O). The automated in-app search and validation have been removed from the primary flow to allow for faster, verbal real-world interactions.
+- **Pass Turn**: A "Pass" functionality allows a player to skip their turn if no valid move is verbally provided.
+- **Offline Answers**: Long-pressing a cell displays a list of valid footballers from the offline curated corpus.
+- **State Management & Animations**: The game state (`XoxGame`) is immutable. To ensure smooth micro-animations without triggering full-board re-renders on every tap, the board entrance animation is keyed to a `_matchId` counter that only increments on a new game.
+- **Legacy Transfermarkt API**: The codebase still contains the infrastructure for Transfermarkt API search/validation (`transfermarkt_service.dart`, etc.), but the UI now relies entirely on the local cache (`player_attributes.dart` / offline database) for offline board solvability guarantees and answer reveals.
 
 ### Factors & board generation
 [game/xox/factor.dart](lib/game/xox/factor.dart) — a `Factor` has a `FactorType`
