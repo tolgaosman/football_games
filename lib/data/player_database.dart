@@ -1,11 +1,11 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import 'player.dart';
 import 'player_db_schema.dart';
+// Opens the bundled read-only asset DB. The implementation is platform-specific
+// (file copy on mobile/desktop, IndexedDB VFS import on web) and selected at
+// compile time so `dart:io` never reaches a web build.
+import 'db_asset_io.dart' if (dart.library.js_interop) 'db_asset_web.dart';
 
 /// Opens and reads the on-device player SQLite database.
 ///
@@ -37,24 +37,9 @@ class PlayerDatabase {
   }
 
   Future<Database> _openInternal() async {
-    final dir = await getDatabasesPath();
-    final path = p.join(dir, PlayerDbSchema.fileName);
-
-    if (!await File(path).exists()) {
-      await Directory(dir).create(recursive: true);
-      final bytes = await rootBundle.load(PlayerDbSchema.assetPath);
-      final data = bytes.buffer.asUint8List(
-        bytes.offsetInBytes,
-        bytes.lengthInBytes,
-      );
-      await File(path).writeAsBytes(data, flush: true);
-    }
-
-    final db = await openDatabase(
-      path,
-      readOnly: true,
-      onConfigure: (d) => d.execute('PRAGMA foreign_keys = ON'),
-    );
+    // Platform-specific open (file copy on mobile/desktop, IndexedDB VFS import
+    // on web), selected via the conditional import above.
+    final db = await openAssetDatabase();
     _db = db;
     return db;
   }

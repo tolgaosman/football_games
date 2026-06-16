@@ -208,7 +208,13 @@ class FactorPool {
     Random rng,
     List<Player> corpus,
   ) {
-    final pool = corpus.isEmpty ? const <Player>[] : corpus;
+    // Defense-in-depth: with no corpus there is nothing to validate solvability
+    // against (e.g. the player DB failed to open). Rather than crash on an empty
+    // `reduce` or loop forever, return any axis-valid board so the screen still
+    // shows a playable grid.
+    if (corpus.isEmpty) return _anyAxisValidBoard(rng);
+
+    final pool = corpus;
 
     // Filter players who satisfy at least 6 factors from the current pool
     final validAnchors = pool.where((player) {
@@ -234,40 +240,32 @@ class FactorPool {
       }
     }
 
-    // Last-resort solvable build: anchor on the player with the MOST satisfied
-    // factors and use only factors they satisfy, so every cell is solvable by
-    // that anchor regardless of the axis split. Pad (if somehow < 6) only with
-    // other factors that anchor also satisfies — never arbitrary ones.
-    final best = pool.reduce((a, b) =>
-        allFactors().where((f) => f.matches(a)).length >=
-                allFactors().where((f) => f.matches(b)).length
-            ? a
-            : b);
-    final satisfied = allFactors().where((f) => f.matches(best)).toList()
-      ..shuffle(rng);
-    // Guarantee at least 6 by padding with safe (non-nationality/non-intl)
-    // factors; these may be unsolvable for the anchor but only run in the
-    // degenerate near-empty-corpus case the real game never hits.
-    if (satisfied.length < 6) {
-      final pad = allFactors()
-          .where((f) =>
-              !f.isNationality && !f.isInternational && !satisfied.contains(f))
-          .toList()
-        ..shuffle(rng);
-      satisfied.addAll(pad);
+    // No anchor satisfied 6+ factors (a degenerate, near-empty corpus the real
+    // game never hits): fall back to any axis-valid board rather than the old
+    // empty-`reduce` path, which crashed when the pool had no usable anchor.
+    return _anyAxisValidBoard(rng);
+  }
+
+  /// Builds a board of six unique factors split 3/3 with a valid axis layout,
+  /// WITHOUT any solvability check. Used as the last-resort fallback when there
+  /// is no corpus to validate against. Bounded by [axisTries]; if no valid split
+  /// is found in that budget it returns an arbitrary 3/3 split (still six unique
+  /// factors), so it can never loop forever or throw.
+  static ({List<Factor> rows, List<Factor> columns}) _anyAxisValidBoard(
+    Random rng,
+  ) {
+    const axisTries = 200;
+    for (var attempt = 0; attempt < axisTries; attempt++) {
+      final chosen = _pickSixUnique(rng);
+      final r = chosen.sublist(0, 3);
+      final c = chosen.sublist(3, 6);
+      if (_axesAreValid(r, c)) {
+        return (rows: r, columns: c);
+      }
     }
-    // Prefer a split that obeys the axis rules; if none in a few tries, accept
-    // any split (still fully solvable, just possibly with a redundant axis).
-    for (var i = 0; i < 100; i++) {
-      satisfied.shuffle(rng);
-      final r = satisfied.sublist(0, 3);
-      final c = satisfied.sublist(3, 6);
-      if (_axesAreValid(r, c)) return (rows: r, columns: c);
-    }
-    return (
-      rows: satisfied.sublist(0, 3),
-      columns: satisfied.sublist(3, 6),
-    );
+    // Arbitrary but valid-shaped fallback (6 unique factors, 3 + 3).
+    final chosen = _pickSixUnique(rng);
+    return (rows: chosen.sublist(0, 3), columns: chosen.sublist(3, 6));
   }
 
   /// Six distinct factors drawn from a shuffled pool. Because [Factor] equality

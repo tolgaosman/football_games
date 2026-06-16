@@ -27,6 +27,23 @@ flutter test                    # run all tests
 flutter test test/factor_pool_test.dart   # run a single test file
 ```
 
+### Web setup (one-time)
+The player database (`assets/db/players.db`) is opened via `sqflite`, which has
+no native web backend. Web uses `sqflite_common_ffi_web` (wired in
+[main.dart](lib/main.dart) behind `kIsWeb`), which needs its SQLite WASM + worker
+installed under `web/`. Run once after `flutter pub get` (and re-run if the
+package version changes):
+
+```bash
+dart run sqflite_common_ffi_web:setup   # drops web/sqlite3.wasm + web/sqflite_sw.js
+```
+
+Without this, `flutter run -d chrome` loads an **empty** player corpus, which
+leaves XOX/party games unplayable. On mobile/desktop nothing extra is needed
+(default sqflite). DB open is platform-split via a conditional import:
+[db_asset_io.dart](lib/data/db_asset_io.dart) (file copy) vs
+[db_asset_web.dart](lib/data/db_asset_web.dart) (IndexedDB VFS import).
+
 ### Player data (Transfermarkt API)
 Player search & validation use a **self-hosted Transfermarkt API**
 ([felipeall/transfermarkt-api](https://github.com/felipeall/transfermarkt-api),
