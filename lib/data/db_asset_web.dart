@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:sqflite/sqflite.dart';
 
@@ -22,10 +23,9 @@ Future<Database> openAssetDatabase() async {
   // Seed the web VFS with the bundled DB bytes (idempotent — overwriting a
   // 245 KB read-only DB on each launch is cheap), then open it.
   await databaseFactory.writeDatabaseBytes(name, data);
-  return databaseFactory.openDatabase(
-    name,
-    options: OpenDatabaseOptions(
-      onConfigure: (d) => d.execute('PRAGMA foreign_keys = ON'),
-    ),
-  );
+  debugPrint('[PlayerDB-Web] VFS seeded with ${data.length} bytes');
+  
+  final db = await databaseFactory.openDatabase(name);
+  debugPrint('[PlayerDB-Web] Database opened successfully');
+  return db;
 }

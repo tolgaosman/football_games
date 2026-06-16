@@ -99,7 +99,9 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
     List<Player> corpus;
     try {
       corpus = await PlayerDatabase.instance.loadAllPlayers();
-    } catch (_) {
+      debugPrint('[XOX] Loaded ${corpus.length} players');
+    } catch (e) {
+      debugPrint('[XOX] DB load failed: $e');
       corpus = const [];
     }
     if (!mounted) return;
@@ -463,7 +465,7 @@ class _GridCell extends StatelessWidget {
 }
 
 /// A dialog that shows all offline valid players for the given [rowFactor] and [colFactor].
-class _AnswersDialog extends StatelessWidget {
+class _AnswersDialog extends StatefulWidget {
   const _AnswersDialog({
     required this.rowFactor,
     required this.colFactor,
@@ -475,8 +477,26 @@ class _AnswersDialog extends StatelessWidget {
   final List<String> names;
 
   @override
+  State<_AnswersDialog> createState() => _AnswersDialogState();
+}
+
+class _AnswersDialogState extends State<_AnswersDialog> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final filteredNames = widget.names
+        .where((n) => n.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -491,29 +511,54 @@ class _AnswersDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                FactorImage(factor: rowFactor, imageSize: 42),
+                FactorImage(factor: widget.rowFactor, imageSize: 42),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
                   child: Text('×', style: TextStyle(color: AppColors.whiteMuted, fontSize: 24, fontWeight: FontWeight.bold)),
                 ),
-                FactorImage(factor: colFactor, imageSize: 42),
+                FactorImage(factor: widget.colFactor, imageSize: 42),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              '${names.length} OYUNCU',
+              '${widget.names.length} OYUNCU',
               textAlign: TextAlign.center,
               style: AppTheme.overline(color: AppColors.pitchGreen),
             ),
+            if (widget.names.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                style: AppTheme.label(14),
+                cursorColor: AppColors.pitchGreen,
+                decoration: InputDecoration(
+                  hintText: 'OYUNCU ARA...',
+                  hintStyle: AppTheme.label(14, color: AppColors.whiteMuted),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.whiteMuted, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surfaceLow,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    borderSide: const BorderSide(color: AppColors.pitchGreen, width: 2),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Expanded(
-              child: names.isEmpty
+              child: filteredNames.isEmpty
                   ? const EmptyState(
                       icon: Icons.search_off_rounded,
                       title: 'EŞLEŞEN OYUNCU YOK',
                     )
                   : ListView.separated(
-                      itemCount: names.length,
+                      itemCount: filteredNames.length,
                       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, i) {
                         return FadeSlideIn(
@@ -527,7 +572,7 @@ class _AnswersDialog extends StatelessWidget {
                               horizontal: AppSpacing.lg,
                               vertical: AppSpacing.md,
                             ),
-                            child: Text(names[i], style: AppTheme.body()),
+                            child: Text(filteredNames[i], style: AppTheme.body()),
                           ),
                         );
                       },

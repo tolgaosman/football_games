@@ -14,26 +14,28 @@ class LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 30,
-            height: 30,
-            child: CircularProgressIndicator(
-              color: AppColors.pitchGreen,
-              strokeWidth: 3,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                color: AppColors.pitchGreen,
+                strokeWidth: 3,
+              ),
             ),
-          ),
-          if (message != null) ...[
-            AppSpacing.gapLg,
-            Text(
-              message!,
-              textAlign: TextAlign.center,
-              style: AppTheme.caption(),
-            ),
+            if (message != null) ...[
+              AppSpacing.gapLg,
+              Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: AppTheme.caption(),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -61,31 +63,33 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: FadeSlideIn(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 56, color: iconColor),
-              AppSpacing.gapLg,
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: AppTheme.title(),
-              ),
-              if (message != null) ...[
-                AppSpacing.gapSm,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 56, color: iconColor),
+                AppSpacing.gapLg,
                 Text(
-                  message!,
+                  title,
                   textAlign: TextAlign.center,
-                  style: AppTheme.body(color: AppColors.whiteMuted),
+                  style: AppTheme.title(),
                 ),
+                if (message != null) ...[
+                  AppSpacing.gapSm,
+                  Text(
+                    message!,
+                    textAlign: TextAlign.center,
+                    style: AppTheme.body(color: AppColors.whiteMuted),
+                  ),
+                ],
+                if (action != null) ...[
+                  AppSpacing.gapXl,
+                  action!,
+                ],
               ],
-              if (action != null) ...[
-                AppSpacing.gapXl,
-                action!,
-              ],
-            ],
+            ),
           ),
         ),
       ),

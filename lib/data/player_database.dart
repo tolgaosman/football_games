@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'player.dart';
@@ -30,6 +31,7 @@ class PlayerDatabase {
 
   /// Returns the shared open database, opening (and copying the asset on first
   /// run) if needed. Concurrent callers await the same open operation.
+  /// If the previous open attempt failed, retries from scratch.
   Future<Database> open() {
     final existing = _db;
     if (existing != null) return Future.value(existing);
@@ -37,11 +39,20 @@ class PlayerDatabase {
   }
 
   Future<Database> _openInternal() async {
-    // Platform-specific open (file copy on mobile/desktop, IndexedDB VFS import
-    // on web), selected via the conditional import above.
-    final db = await openAssetDatabase();
-    _db = db;
-    return db;
+    try {
+      // Platform-specific open (file copy on mobile/desktop, IndexedDB VFS
+      // import on web), selected via the conditional import above.
+      final db = await openAssetDatabase();
+      _db = db;
+      debugPrint('[PlayerDB] Database opened successfully');
+      return db;
+    } catch (e) {
+      // Clear the cached future so the next call retries instead of returning
+      // the same failed future forever.
+      _opening = null;
+      debugPrint('[PlayerDB] Failed to open database: $e');
+      rethrow;
+    }
   }
 
   /// Loads every player with all attribute sets populated — the corpus fed to
@@ -49,6 +60,7 @@ class PlayerDatabase {
   Future<List<Player>> loadAllPlayers() async {
     final db = await open();
     final rows = await db.query(PlayerDbSchema.tPlayers);
+    debugPrint('[PlayerDB] players table: ${rows.length} rows');
 
     final played = await _groupByPlayer(
         db, PlayerDbSchema.tLeaguesPlayed, PlayerDbSchema.cLeague);
@@ -58,8 +70,10 @@ class PlayerDatabase {
         db, PlayerDbSchema.tIntlTitles, PlayerDbSchema.cTournament);
     final teams = await _groupByPlayer(
         db, PlayerDbSchema.tTeams, PlayerDbSchema.cTeam);
+    debugPrint('[PlayerDB] Attribute maps: played=${played.length}, '
+        'titles=${titles.length}, intl=${intl.length}, teams=${teams.length}');
 
-    return [
+    final result = [
       for (final row in rows)
         _rowToPlayer(
           row,
@@ -69,6 +83,8 @@ class PlayerDatabase {
           teams: teams[row[PlayerDbSchema.cId]] ?? const {},
         ),
     ];
+    debugPrint('[PlayerDB] Built ${result.length} Player objects');
+    return result;
   }
 
   /// Builds full [Player] objects for the given player [ids], loading their

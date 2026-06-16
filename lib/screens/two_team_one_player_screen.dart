@@ -66,7 +66,9 @@ class _TwoTeamOnePlayerScreenState extends State<TwoTeamOnePlayerScreen> {
     List<Player> corpus;
     try {
       corpus = await PlayerDatabase.instance.loadAllPlayers();
-    } catch (_) {
+      debugPrint('[2T1P] Loaded ${corpus.length} players');
+    } catch (e) {
+      debugPrint('[2T1P] DB load failed: $e');
       corpus = const [];
     }
     if (!mounted) return;
@@ -450,6 +452,8 @@ class _AnswersDialog extends StatefulWidget {
 class _AnswersDialogState extends State<_AnswersDialog> {
   bool _loading = true;
   late List<String> _names;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   /// Whether the shown list was fact-checked. The local [fallback] corpus is
   /// trusted, so it counts as verified; only an unverified live result is false.
@@ -460,6 +464,12 @@ class _AnswersDialogState extends State<_AnswersDialog> {
     super.initState();
     _names = widget.fallback;
     _resolve();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _resolve() async {
@@ -475,6 +485,10 @@ class _AnswersDialogState extends State<_AnswersDialog> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final filteredNames = _names
+        .where((n) => n.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
@@ -505,17 +519,42 @@ class _AnswersDialogState extends State<_AnswersDialog> {
                 style: AppTheme.overline(color: AppColors.danger),
               ),
             ],
+            if (!_loading && _names.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                style: AppTheme.label(14),
+                cursorColor: AppColors.pitchGreen,
+                decoration: InputDecoration(
+                  hintText: 'OYUNCU ARA...',
+                  hintStyle: AppTheme.label(14, color: AppColors.whiteMuted),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.whiteMuted, size: 20),
+                  filled: true,
+                  fillColor: AppColors.surfaceLow,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    borderSide: const BorderSide(color: AppColors.pitchGreen, width: 2),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: _loading
                   ? const LoadingState(message: 'ARANIYOR…')
-                  : _names.isEmpty
+                  : filteredNames.isEmpty
                       ? const EmptyState(
                           icon: Icons.search_off_rounded,
                           title: 'ORTAK OYUNCU YOK',
                         )
                       : ListView.separated(
-                          itemCount: _names.length,
+                          itemCount: filteredNames.length,
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: AppSpacing.sm),
                           itemBuilder: (context, i) {
@@ -530,7 +569,7 @@ class _AnswersDialogState extends State<_AnswersDialog> {
                                   horizontal: AppSpacing.lg,
                                   vertical: AppSpacing.md,
                                 ),
-                                child: Text(_names[i], style: AppTheme.body()),
+                                child: Text(filteredNames[i], style: AppTheme.body()),
                               ),
                             );
                           },
