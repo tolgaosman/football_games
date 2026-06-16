@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import '../../data/footballer_pool.dart';
+
 import '../../data/player.dart';
 import 'board_solver.dart';
 import 'factor.dart';
@@ -155,7 +155,7 @@ class FactorPool {
   /// (every one of the 9 cells has at least one player in [players] satisfying
   /// both its row and column factor).
   ///
-  /// [players] defaults to the curated [PlayerAttributes] corpus; tests can
+  /// [players] defaults to an empty list; tests can
   /// inject a fixed list. Returns a record of (rows, columns), length 3 each.
   static ({List<Factor> rows, List<Factor> columns}) generateBoard([
     Random? random,
@@ -164,10 +164,11 @@ class FactorPool {
     final rng = random ?? Random();
     // Always validate solvability against a real corpus. When no corpus is
     // supplied (e.g. before the SQLite DB has loaded, or a degenerate test),
-    // fall back to the curated FootballerPool — the same data the DB is built
-    // from — rather than producing an unchecked, possibly unanswerable board.
+    // fall back to an empty corpus when none is supplied. The
+    // _solvableBoardFor fallback below ensures a playable board even with an
+    // empty corpus.
     final corpus = (players == null || players.isEmpty)
-        ? FootballerPool.all
+        ? const <Player>[]
         : players;
 
     // Reject-sample whole draws until the split obeys the axis rules and the
@@ -207,7 +208,7 @@ class FactorPool {
     Random rng,
     List<Player> corpus,
   ) {
-    final pool = corpus.isEmpty ? FootballerPool.all : corpus;
+    final pool = corpus.isEmpty ? const <Player>[] : corpus;
 
     // Filter players who satisfy at least 6 factors from the current pool
     final validAnchors = pool.where((player) {

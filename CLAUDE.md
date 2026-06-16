@@ -43,6 +43,24 @@ the curated offline cache in [player_attributes.dart](lib/data/player_attributes
 and the search has both a per-request and an overall timeout so the UI never
 hangs.
 
+### Live answer-search (party games)
+The **1 Team 1 Country** and **2 Team 1 Player** game screens call **Google Gemini**
+to fetch 3–5 reference player names each time you reveal answers. Get a free API key:
+
+1. Go to **https://aistudio.google.com/apikey**
+2. Sign in, click **"Create API key"**
+3. Copy the key (starts with `AIza...` or `AQ.`)
+
+Then run the app with:
+
+```bash
+flutter run --dart-define-from-file=dart_define.json
+```
+
+Edit [dart_define.json](dart_define.json) and paste your key in place of the
+placeholder. The file is git-ignored so your key stays private. **If unreachable
+or no key**, the screens fall back to the offline local corpus answers.
+
 ## Architecture
 
 ```

@@ -13,6 +13,9 @@ class AppColors {
   /// Slightly raised surface for cards and sheets.
   static const Color surface = Color(0xFF1C1C1C);
 
+  /// An elevated surface tier for layering above cards (sheets, dialogs).
+  static const Color surfaceHigh = Color(0xFF242424);
+
   /// A darker surface used for inset / empty states.
   static const Color surfaceLow = Color(0xFF0A0A0A);
 
@@ -22,7 +25,16 @@ class AppColors {
   /// A dimmer green for secondary accents / disabled states.
   static const Color pitchGreenDim = Color(0xFF1F8A0C);
 
-  /// Sharp white for primary text and high-contrast borders.
+  /// A faint green tint for focus rings, hovers and soft fills.
+  static const Color pitchGreenSoft = Color(0x1F39FF14);
+
+  /// Quiet outline / divider colour — for edges that shouldn't shout.
+  static const Color border = Color(0xFF2E2E2E);
+
+  /// Primary text colour — softened off-white for comfortable reading.
+  static const Color textPrimary = Color(0xFFF5F5F5);
+
+  /// Sharp white reserved for true high-contrast accents and borders.
   static const Color white = Color(0xFFFFFFFF);
 
   /// Muted white for secondary text.

@@ -7,8 +7,10 @@ import '../../data/player_repository.dart';
 import '../../game/xox/factor.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/animations.dart';
 import '../../widgets/brutalist_card.dart';
 import '../../widgets/factor_image.dart';
+import '../../widgets/states.dart';
 
 /// Modal bottom sheet for picking a player to fill an XOX cell.
 ///
@@ -123,11 +125,19 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.background,
+            color: AppColors.surfaceHigh,
             border: Border(
-              top: BorderSide(color: AppColors.pitchGreen, width: AppTheme.borderWidth),
+              top: BorderSide(
+                  color: AppColors.pitchGreen, width: AppTheme.borderWidth),
             ),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 32,
+                offset: Offset(0, -8),
+              ),
+            ],
           ),
           // Reserve space for the keyboard so the fixed header + search field
           // are pushed above it instead of overflowing the sheet.
@@ -136,7 +146,7 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
             children: [
               _buildHandleAndHeader(),
               _buildSearchField(),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Expanded(child: _buildBody(scrollController)),
             ],
           ),
@@ -147,24 +157,25 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
 
   Widget _buildHandleAndHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.sm),
       child: Column(
         children: [
           Container(
-            width: 56,
-            height: 6,
+            width: 48,
+            height: 5,
             decoration: BoxDecoration(
-              color: AppColors.whiteMuted,
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
                 child: Text(
                   'FIND A PLAYER',
-                  style: AppTheme.heading(22),
+                  style: AppTheme.title(),
                 ),
               ),
               IconButton(
@@ -173,7 +184,7 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md),
           // The two factor "chips" the player must satisfy.
           Row(
             children: [
@@ -239,14 +250,12 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
 
   Widget _buildBody(ScrollController scrollController) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.pitchGreen),
-      );
+      return const LoadingState(message: 'SEARCHING…');
     }
 
     final result = _result;
     if (result == null) {
-      return _Hint(
+      return const EmptyState(
         icon: Icons.sports_soccer_rounded,
         title: 'SEARCH AWAY',
         message:
@@ -255,7 +264,14 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
     }
 
     if (result.isEmpty) {
-      return _Hint(
+      if (result.status == SearchStatus.error) {
+        return ErrorState(
+          title: 'SEARCH FAILED',
+          message: result.message ??
+              'Search timed out. Check the connection and try again.',
+        );
+      }
+      return EmptyState(
         icon: Icons.search_off_rounded,
         title: 'NO MATCHES',
         message: result.message ??
@@ -263,20 +279,26 @@ class _PlayerSearchSheetState extends State<_PlayerSearchSheet> {
       );
     }
 
+    final hasBanner = result.message != null;
     return ListView.separated(
       controller: scrollController,
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      itemCount: result.players.length + (result.message != null ? 1 : 0),
-      separatorBuilder: (_, _) => const SizedBox(height: 14),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.xxl),
+      itemCount: result.players.length + (hasBanner ? 1 : 0),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
-        if (result.message != null && index == 0) {
+        if (hasBanner && index == 0) {
           return _Banner(message: result.message!, status: result.status);
         }
-        final player =
-            result.players[index - (result.message != null ? 1 : 0)];
-        return _PlayerTile(
-          player: player,
-          onTap: () => Navigator.of(context).pop(player),
+        final dataIndex = index - (hasBanner ? 1 : 0);
+        final player = result.players[dataIndex];
+        return FadeSlideIn(
+          delay: Duration(milliseconds: 30 * dataIndex),
+          duration: AppTheme.durMed,
+          child: _PlayerTile(
+            player: player,
+            onTap: () => Navigator.of(context).pop(player),
+          ),
         );
       },
     );
@@ -325,17 +347,17 @@ class _PlayerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return SpringScale(
       onTap: onTap,
       child: BrutalistCard(
         color: AppColors.surface,
-        borderColor: AppColors.white,
+        borderColor: AppColors.border,
         shadowOffset: const Offset(4, 4),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
             _Avatar(player: player),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,36 +461,3 @@ class _Banner extends StatelessWidget {
   }
 }
 
-class _Hint extends StatelessWidget {
-  const _Hint({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: AppColors.whiteMuted),
-            const SizedBox(height: 16),
-            Text(title, style: AppTheme.heading(22, color: AppColors.white)),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: AppTheme.label(14, color: AppColors.whiteMuted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import '../../data/player_attributes.dart';
 import '../../data/player.dart';
 import '../xox/factor_pool.dart';
 
@@ -8,20 +7,25 @@ import '../xox/factor_pool.dart';
 ///
 /// One club is drawn from [FactorPool.teams] and one nationality from
 /// [FactorPool.nationalities]; the "answer" to a round is the set of footballers
-/// in [PlayerAttributes] who played for that club AND hold that nationality. All
-/// data is local — there is no network layer.
+/// in the injected corpus who played for that club AND hold that nationality.
+/// The corpus is supplied by the screen (loaded from the on-device player
+/// database, falling back to an empty corpus) — there is no network layer here.
 class OneTeamGame {
-  OneTeamGame._();
+  OneTeamGame(this._players) {
+    _validPairs = _buildValidPairs();
+  }
 
-  /// The pool of clubs that can appear in the team slot (43 canonical clubs).
+  final List<Player> _players;
+
+  /// The pool of clubs that can appear in the team slot (canonical clubs).
   static List<String> get teams => FactorPool.teams;
 
   /// The pool of nationalities that can appear in the country slot.
   static List<String> get nationalities => FactorPool.nationalities;
 
   /// Footballers who played for [team] and hold [nationality], sorted by name.
-  static List<Player> matchingPlayers(String team, String nationality) {
-    final result = PlayerAttributes.all
+  List<Player> matchingPlayers(String team, String nationality) {
+    final result = _players
         .where((p) => p.teams.contains(team) && p.nationality == nationality)
         .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -29,11 +33,10 @@ class OneTeamGame {
   }
 
   /// All (team, nationality) pairs that have at least one matching player. Built
-  /// once and cached, since the pool is static.
-  static final List<({String team, String nationality})> _validPairs =
-      _buildValidPairs();
+  /// once in the constructor, since the corpus is fixed for a game instance.
+  late final List<({String team, String nationality})> _validPairs;
 
-  static List<({String team, String nationality})> _buildValidPairs() {
+  List<({String team, String nationality})> _buildValidPairs() {
     final pairs = <({String team, String nationality})>[];
     for (final team in teams) {
       for (final nationality in nationalities) {
@@ -46,13 +49,13 @@ class OneTeamGame {
   }
 
   /// Whether any (team, nationality) pair with a matching player exists.
-  static bool get hasAnyValidPair => _validPairs.isNotEmpty;
+  bool get hasAnyValidPair => _validPairs.isNotEmpty;
 
   /// A random (team, nationality) pair guaranteed to have a matching player.
   ///
   /// Falls back to the first club + first nationality if (defensively) none
-  /// exists — the real pool always has many valid pairs.
-  static ({String team, String nationality}) randomPair([Random? rng]) {
+  /// exists — a populated corpus always has many valid pairs.
+  ({String team, String nationality}) randomPair([Random? rng]) {
     if (_validPairs.isEmpty) {
       return (team: teams.first, nationality: nationalities.first);
     }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../routing/app_routes.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/animations.dart';
 import '../widgets/brutalist_button.dart';
 import '../widgets/flyball_logo.dart';
 
@@ -21,77 +22,47 @@ class HomeScreen extends StatelessWidget {
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
+                    horizontal: AppSpacing.xl,
+                    vertical: AppSpacing.xl,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 8),
-                      const FlyballLogo(size: 110),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.sm),
+                      const FadeSlideIn(
+                        offset: Offset(0, 0.18),
+                        child: FlyballLogo(size: 110),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
                       // Wordmark.
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'FLY',
-                              style: AppTheme.heading(40,
-                                  color: AppColors.white),
-                            ),
-                            TextSpan(
-                              text: 'BALL',
-                              style: AppTheme.heading(40,
-                                  color: AppColors.pitchGreen),
-                            ),
-                          ],
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 80),
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'FLY',
+                                style: AppTheme.displayXL(color: AppColors.white),
+                              ),
+                              TextSpan(
+                                text: 'BALL',
+                                style: AppTheme.displayXL(
+                                    color: AppColors.pitchGreen),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'FOOTBALL TRIVIA, REIMAGINED',
-                        style: AppTheme.label(13,
-                            color: AppColors.whiteMuted,
-                            weight: FontWeight.w700),
+                      const SizedBox(height: AppSpacing.sm),
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 140),
+                        child: Text(
+                          'FOOTBALL TRIVIA, REIMAGINED',
+                          style: AppTheme.overline(),
+                        ),
                       ),
-                      const SizedBox(height: 30),
-                      _GameButton(
-                        label: 'FOOTBALL XOX',
-                        icon: Icons.grid_3x3_rounded,
-                        onPressed: () => Navigator.of(context)
-                            .pushNamed(AppRoutes.footballXox),
-                      ),
-                      const SizedBox(height: 12),
-                      _GameButton(
-                        label: '2 TEAM 1 PLAYER',
-                        icon: Icons.people_alt_rounded,
-                        color: AppColors.surface,
-                        foregroundColor: AppColors.white,
-                        borderColor: AppColors.pitchGreen,
-                        onPressed: () => Navigator.of(context)
-                            .pushNamed(AppRoutes.twoTeamOnePlayer),
-                      ),
-                      const SizedBox(height: 12),
-                      _GameButton(
-                        label: 'FOOTBALLDLE',
-                        icon: Icons.abc_rounded,
-                        color: AppColors.surface,
-                        foregroundColor: AppColors.white,
-                        borderColor: AppColors.pitchGreen,
-                        onPressed: () => Navigator.of(context)
-                            .pushNamed(AppRoutes.footballdle),
-                      ),
-                      const SizedBox(height: 12),
-                      _GameButton(
-                        label: '1 TEAM 1 COUNTRY',
-                        icon: Icons.public_rounded,
-                        color: AppColors.surface,
-                        foregroundColor: AppColors.white,
-                        borderColor: AppColors.pitchGreen,
-                        onPressed: () => Navigator.of(context)
-                            .pushNamed(AppRoutes.oneTeamOneCountry),
-                      ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.xxl),
+                      ..._buildGameButtons(context),
                     ],
                   ),
                 ),
@@ -101,6 +72,63 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildGameButtons(BuildContext context) {
+    final buttons = <_GameButton>[
+      _GameButton(
+        label: 'FOOTBALL XOX',
+        icon: Icons.grid_3x3_rounded,
+        onPressed: () async {
+          final result = await Navigator.of(context)
+              .pushNamed(AppRoutes.footballXoxLobby);
+          if (!context.mounted || result == null) return;
+          Navigator.of(context).pushNamed(
+            AppRoutes.footballXox,
+            arguments: result,
+          );
+        },
+      ),
+      _GameButton(
+        label: '2 TEAM 1 PLAYER',
+        icon: Icons.people_alt_rounded,
+        color: AppColors.surface,
+        foregroundColor: AppColors.white,
+        borderColor: AppColors.pitchGreen,
+        onPressed: () =>
+            Navigator.of(context).pushNamed(AppRoutes.twoTeamOnePlayer),
+      ),
+      _GameButton(
+        label: 'FOOTBALLDLE',
+        icon: Icons.abc_rounded,
+        color: AppColors.surface,
+        foregroundColor: AppColors.white,
+        borderColor: AppColors.pitchGreen,
+        onPressed: () =>
+            Navigator.of(context).pushNamed(AppRoutes.footballdle),
+      ),
+      _GameButton(
+        label: '1 TEAM 1 COUNTRY',
+        icon: Icons.public_rounded,
+        color: AppColors.surface,
+        foregroundColor: AppColors.white,
+        borderColor: AppColors.pitchGreen,
+        onPressed: () =>
+            Navigator.of(context).pushNamed(AppRoutes.oneTeamOneCountry),
+      ),
+    ];
+
+    final widgets = <Widget>[];
+    for (var i = 0; i < buttons.length; i++) {
+      if (i > 0) widgets.add(const SizedBox(height: AppSpacing.md));
+      widgets.add(
+        FadeSlideIn(
+          delay: Duration(milliseconds: 200 + i * 70),
+          child: buttons[i],
+        ),
+      );
+    }
+    return widgets;
   }
 }
 

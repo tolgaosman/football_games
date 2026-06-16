@@ -3,13 +3,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../data/answer_search_service.dart';
 import '../data/player.dart';
+import '../data/player_database.dart';
 import '../game/one_team/one_team_game.dart';
 import '../game/xox/factor_art.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/animations.dart';
 import '../widgets/brutalist_button.dart';
 import '../widgets/brutalist_card.dart';
+import '../widgets/states.dart';
 
 /// **1 Team 1 Country** — a two-player party quiz.
 ///
@@ -28,6 +32,13 @@ class OneTeamOneCountryScreen extends StatefulWidget {
 
 class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
   final Random _rng = Random();
+
+  /// The game logic, built once the player corpus is loaded.
+  late OneTeamGame _game;
+  bool _loading = true;
+
+  /// Fetches live reference answers; falls back to the local corpus.
+  final AnswerSearchService _answerSearch = AnswerSearchService();
 
   /// The settled pair.
   late String _team;
@@ -48,9 +59,27 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
   @override
   void initState() {
     super.initState();
-    final pair = OneTeamGame.randomPair(_rng);
-    _team = _displayTeam = pair.team;
-    _country = _displayCountry = pair.nationality;
+    _load();
+  }
+
+  /// Loads the player corpus from the on-device database, builds the game and
+  /// settles the first pair. Falls back to an empty corpus on DB failure.
+  Future<void> _load() async {
+    List<Player> corpus;
+    try {
+      corpus = await PlayerDatabase.instance.loadAllPlayers();
+    } catch (_) {
+      corpus = const [];
+    }
+    if (!mounted) return;
+    final game = OneTeamGame(corpus);
+    final pair = game.randomPair(_rng);
+    setState(() {
+      _game = game;
+      _team = _displayTeam = pair.team;
+      _country = _displayCountry = pair.nationality;
+      _loading = false;
+    });
   }
 
   @override
@@ -75,7 +104,7 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       _spinTimer?.cancel();
-      final pair = OneTeamGame.randomPair(_rng);
+      final pair = _game.randomPair(_rng);
       setState(() {
         _team = _displayTeam = pair.team;
         _country = _displayCountry = pair.nationality;
@@ -91,12 +120,13 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.surfaceHigh,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.radius),
-          side: const BorderSide(color: AppColors.white, width: AppTheme.borderWidth),
+          side: const BorderSide(
+              color: AppColors.pitchGreen, width: AppTheme.borderWidth),
         ),
-        title: Text('İSİM', style: AppTheme.heading(20)),
+        title: Text('İSİM', style: AppTheme.title()),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -138,13 +168,16 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
 
   void _showAnswers() {
     if (_spinning) return;
-    final players = OneTeamGame.matchingPlayers(_team, _country);
+    // Local corpus answers serve as the offline fallback for the live search.
+    final fallback =
+        _game.matchingPlayers(_team, _country).map((p) => p.name).toList();
     showDialog<void>(
       context: context,
       builder: (context) => _AnswersDialog(
         team: _team,
         country: _country,
-        players: players,
+        search: _answerSearch.search(condition1: _team, condition2: _country),
+        fallback: fallback,
       ),
     );
   }
@@ -158,40 +191,48 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
         iconTheme: const IconThemeData(color: AppColors.white),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
+        child: _loading
+            ? const LoadingState()
+            : LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(AppSpacing.xl),
                   child: Column(
                     children: [
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       // ── Slot boxes: team + country ──
                       IntrinsicHeight(
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              child: _SlotBox(
-                                label: _displayTeam,
-                                image: _TeamLogo(team: _displayTeam),
-                                spinning: _spinning,
+                              child: SuccessPop(
+                                trigger: _spinning ? null : _team,
+                                child: _SlotBox(
+                                  label: _displayTeam,
+                                  image: _TeamLogo(team: _displayTeam),
+                                  spinning: _spinning,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: AppSpacing.md),
                             Expanded(
-                              child: _SlotBox(
-                                label: _displayCountry,
-                                image: _CountryFlag(country: _displayCountry),
-                                spinning: _spinning,
+                              child: SuccessPop(
+                                trigger: _spinning ? null : _country,
+                                child: _SlotBox(
+                                  label: _displayCountry,
+                                  image: _CountryFlag(country: _displayCountry),
+                                  spinning: _spinning,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.xl),
                       // ── Scoreboard ──
                       IntrinsicHeight(
                         child: Row(
@@ -207,7 +248,7 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
                                     setState(() => _p1Score = max(0, _p1Score - 1)),
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: _ScorePanel(
                                 name: _p2Name,
@@ -221,13 +262,13 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: AppSpacing.xxl),
                       // ── Action buttons ──
                       BrutalistButton(
                         onPressed: _spinning ? null : _spin,
                         child: const Text('YENİ TUR'),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.md),
                       BrutalistButton(
                         onPressed: _spinning ? null : _showAnswers,
                         color: AppColors.surface,
@@ -235,7 +276,7 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
                         borderColor: AppColors.pitchGreen,
                         child: const Text('CEVAPLAR'),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                     ],
                   ),
                 ),
@@ -263,19 +304,23 @@ class _SlotBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BrutalistCard(
-      borderColor: spinning ? AppColors.pitchGreen : AppColors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+      borderColor: spinning ? AppColors.pitchGreen : AppColors.border,
+      soft: !spinning,
+      shadowColor: AppColors.pitchGreen,
+      shadowOffset: spinning ? const Offset(5, 5) : AppTheme.shadowOffset,
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.lg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(height: 84, child: Center(child: image)),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Text(
             label,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.heading(16),
+            style: AppTheme.headline(),
           ),
         ],
       ),
@@ -361,7 +406,10 @@ class _ScorePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BrutalistCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      borderColor: AppColors.border,
+      soft: true,
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.lg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -376,17 +424,23 @@ class _ScorePanel extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTheme.label(14, color: AppColors.whiteMuted),
+                    style: AppTheme.caption(),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 const Icon(Icons.edit, size: 14, color: AppColors.whiteMuted),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text('$score', style: AppTheme.heading(44, color: AppColors.pitchGreen)),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
+          SuccessPop(
+            trigger: score,
+            child: Text(
+              '$score',
+              style: AppTheme.heading(44, color: AppColors.pitchGreen),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Expanded(
@@ -395,16 +449,16 @@ class _ScorePanel extends StatelessWidget {
                   color: AppColors.surfaceLow,
                   foregroundColor: AppColors.white,
                   borderColor: AppColors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   restingOffset: const Offset(3, 3),
                   child: const Text('−'),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: BrutalistButton(
                   onPressed: onIncrement,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   restingOffset: const Offset(3, 3),
                   child: const Text('+'),
                 ),
@@ -417,18 +471,48 @@ class _ScorePanel extends StatelessWidget {
   }
 }
 
-/// A scrollable popup listing every footballer who played for the club and
-/// holds the nationality.
-class _AnswersDialog extends StatelessWidget {
+/// A scrollable popup listing footballers who played for the club and hold the
+/// nationality.
+///
+/// While [search] is in flight it shows a loading state, then renders the live
+/// LLM names; if the search yields `null` (no key / network / parse failure) it
+/// falls back to the on-device [fallback] names.
+class _AnswersDialog extends StatefulWidget {
   const _AnswersDialog({
     required this.team,
     required this.country,
-    required this.players,
+    required this.search,
+    required this.fallback,
   });
 
   final String team;
   final String country;
-  final List<Player> players;
+  final Future<List<String>?> search;
+  final List<String> fallback;
+
+  @override
+  State<_AnswersDialog> createState() => _AnswersDialogState();
+}
+
+class _AnswersDialogState extends State<_AnswersDialog> {
+  bool _loading = true;
+  late List<String> _names;
+
+  @override
+  void initState() {
+    super.initState();
+    _names = widget.fallback;
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    final live = await widget.search;
+    if (!mounted) return;
+    setState(() {
+      _names = live ?? widget.fallback;
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -437,51 +521,56 @@ class _AnswersDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: BrutalistCard(
+        color: AppColors.surfaceHigh,
         borderColor: AppColors.pitchGreen,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         height: size.height * 0.7,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '$team  ×  $country',
+              '${widget.team}  ×  ${widget.country}',
               textAlign: TextAlign.center,
-              style: AppTheme.heading(18),
+              style: AppTheme.headline(),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              '${players.length} OYUNCU',
+              _loading ? 'ARANIYOR…' : '${_names.length} OYUNCU',
               textAlign: TextAlign.center,
-              style: AppTheme.label(12, color: AppColors.pitchGreen),
+              style: AppTheme.overline(color: AppColors.pitchGreen),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.lg),
             Expanded(
-              child: players.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Eşleşen oyuncu yok',
-                        style: AppTheme.label(16, color: AppColors.whiteMuted),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: players.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final p = players[i];
-                        return BrutalistCard(
-                          color: AppColors.surfaceLow,
-                          borderColor: AppColors.white,
-                          shadowOffset: Offset.zero,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          child: Text(p.name, style: AppTheme.label(16)),
-                        );
-                      },
-                    ),
+              child: _loading
+                  ? const LoadingState(message: 'ARANIYOR…')
+                  : _names.isEmpty
+                      ? const EmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'EŞLEŞEN OYUNCU YOK',
+                        )
+                      : ListView.separated(
+                          itemCount: _names.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: AppSpacing.sm),
+                          itemBuilder: (context, i) {
+                            return FadeSlideIn(
+                              delay: Duration(milliseconds: 30 * i),
+                              duration: AppTheme.durMed,
+                              child: BrutalistCard(
+                                color: AppColors.surfaceLow,
+                                borderColor: AppColors.border,
+                                shadowOffset: Offset.zero,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.lg,
+                                  vertical: AppSpacing.md,
+                                ),
+                                child: Text(_names[i], style: AppTheme.body()),
+                              ),
+                            );
+                          },
+                        ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpacing.lg),
             BrutalistButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('KAPAT'),

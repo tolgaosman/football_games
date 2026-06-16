@@ -10,7 +10,7 @@ import 'player_db_schema.dart';
 /// Opens and reads the on-device player SQLite database.
 ///
 /// The database ships as a read-only asset ([PlayerDbSchema.assetPath]) built
-/// by `scratch/build_db.dart` from the curated [FootballerPool]. On first
+/// by `scratch/build_db.dart` from the curated player data. On first
 /// launch the asset is copied into the app's writable database directory; from
 /// then on it is opened from there. A singleton holds the open connection so
 /// the whole app shares one handle.

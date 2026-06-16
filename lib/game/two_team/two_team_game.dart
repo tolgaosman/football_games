@@ -1,23 +1,27 @@
 import 'dart:math';
 
-import '../../data/player_attributes.dart';
 import '../../data/player.dart';
 import '../xox/factor_pool.dart';
 
 /// Pure game logic for **2 Team 1 Player**.
 ///
 /// Two clubs are drawn from [FactorPool.teams]; the "answer" to a round is the
-/// set of footballers in [PlayerAttributes] who played for BOTH clubs. All data is
-/// local — there is no network layer.
+/// set of footballers in the injected corpus who played for BOTH clubs. The
+/// corpus is supplied by the screen (loaded from the on-device player database,
+/// falling back to an empty corpus) — there is no network layer here.
 class TwoTeamGame {
-  TwoTeamGame._();
+  TwoTeamGame(this._players) {
+    _validPairs = _buildValidPairs();
+  }
 
-  /// The pool of clubs that can appear in the slots (the 43 canonical clubs).
+  final List<Player> _players;
+
+  /// The pool of clubs that can appear in the slots (the canonical clubs).
   static List<String> get teams => FactorPool.teams;
 
   /// Footballers who played for BOTH [teamA] and [teamB], sorted by name.
-  static List<Player> sharedPlayers(String teamA, String teamB) {
-    final result = PlayerAttributes.all
+  List<Player> sharedPlayers(String teamA, String teamB) {
+    final result = _players
         .where((p) => p.teams.contains(teamA) && p.teams.contains(teamB))
         .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -25,11 +29,10 @@ class TwoTeamGame {
   }
 
   /// All unordered club pairs that have at least one shared player. Built once
-  /// and cached, since the pool is static.
-  static final List<({String teamA, String teamB})> _validPairs =
-      _buildValidPairs();
+  /// in the constructor, since the corpus is fixed for a game instance.
+  late final List<({String teamA, String teamB})> _validPairs;
 
-  static List<({String teamA, String teamB})> _buildValidPairs() {
+  List<({String teamA, String teamB})> _buildValidPairs() {
     final pairs = <({String teamA, String teamB})>[];
     final all = teams;
     for (var i = 0; i < all.length; i++) {
@@ -43,13 +46,13 @@ class TwoTeamGame {
   }
 
   /// Whether any club pair with a shared player exists (defensive guard).
-  static bool get hasAnyValidPair => _validPairs.isNotEmpty;
+  bool get hasAnyValidPair => _validPairs.isNotEmpty;
 
   /// A random club pair guaranteed to have at least one shared player.
   ///
   /// Falls back to the first two clubs if (defensively) no valid pair exists —
-  /// the real pool always has hundreds of valid pairs.
-  static ({String teamA, String teamB}) randomPair([Random? rng]) {
+  /// a populated corpus always has hundreds of valid pairs.
+  ({String teamA, String teamB}) randomPair([Random? rng]) {
     if (_validPairs.isEmpty) {
       return (teamA: teams.first, teamB: teams.last);
     }

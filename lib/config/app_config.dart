@@ -19,4 +19,24 @@ class AppConfig {
     'TRANSFERMARKT_BASE_URL',
     defaultValue: 'http://localhost:8000',
   );
+
+  /// Google Gemini API key used by [AnswerSearchService] to fetch live
+  /// reference answers for the party games. Provide it via:
+  ///
+  /// ```
+  /// flutter run --dart-define=GEMINI_API_KEY=<your-key>
+  /// ```
+  ///
+  /// When empty, the party games fall back to the offline local corpus.
+  ///
+  /// NOTE: a `--dart-define` key is compiled into the binary and can be
+  /// extracted — fine for local/personal dev, but a public release should move
+  /// the key behind a proxy server.
+  static const String geminiApiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
+
+  /// Whether a Gemini API key is configured.
+  static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 }

@@ -1,9 +1,8 @@
 /// A football player candidate used by the XOX game.
 ///
-/// Combines identity fields (often sourced from the API-Football search) with
-/// the attributes needed for factor validation. League / title / team
-/// attributes come from the local [PlayerAttributes] map; nationality may come
-/// from the API response or the local fallback.
+/// Combines identity fields with the attributes needed for factor validation.
+/// League / title / team attributes come from the on-device SQLite database;
+/// nationality may come from the API response or the local fallback.
 class Player {
   const Player({
     required this.id,

@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../data/footballer_pool.dart';
 import '../data/player.dart';
 import '../data/player_database.dart';
-import '../data/player_repository.dart';
-import '../data/sqlite_player_repository.dart';
 import '../game/xox/factor.dart';
 import '../game/xox/xox_cell.dart';
 import '../game/xox/xox_game.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
-import '../ui/xox/player_search_sheet.dart';
+import '../widgets/animations.dart';
 import '../widgets/brutalist_button.dart';
 import '../widgets/brutalist_card.dart';
 import '../widgets/factor_image.dart';
+import '../widgets/states.dart';
 
 /// Football XOX: a two-player (X vs O) tic-tac-toe over a 3x3 trivia grid.
 ///
@@ -23,17 +21,23 @@ import '../widgets/factor_image.dart';
 /// may be used once per match. First to complete a row, column, or diagonal of
 /// their mark wins; a full board with no line is a draw.
 class FootballXoxScreen extends StatefulWidget {
-  const FootballXoxScreen({super.key, this.repository});
+  const FootballXoxScreen({
+    super.key,
+    this.playerXName = 'Player X',
+    this.playerOName = 'Player O',
+  });
 
-  /// Injectable for testing; defaults to the API-backed repository.
-  final PlayerRepository? repository;
+  /// Display name for the player assigned X.
+  final String playerXName;
+
+  /// Display name for the player assigned O.
+  final String playerOName;
 
   @override
   State<FootballXoxScreen> createState() => _FootballXoxScreenState();
 }
 
 class _FootballXoxScreenState extends State<FootballXoxScreen> {
-  late PlayerRepository _repository;
   late XoxGame _game;
 
   /// The full player corpus, loaded once from the DB and reused for every new
@@ -44,32 +48,43 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
   /// is only built once this is false, so [_game] is always set by then.
   bool _loading = true;
 
-  Future<void> _onCellTapped(int row, int col) async {
+  void _onCellTapped(int row, int col) {
     if (_game.isOver || _game.cellAt(row, col).isFilled) return;
 
-    final player = await showPlayerSearchSheet(
-      context: context,
-      repository: _repository,
-      rowFactor: _game.rows[row],
-      columnFactor: _game.columns[col],
-      excludeIds: _game.usedPlayerIds,
+    // Game Master mode: instantly claim the cell for the current player
+    // without opening the search dialog.
+    final dummyPlayer = Player(
+      id: 'claim_${row}_$col',
+      name: _game.currentPlayerName,
+      nationality: '',
     );
 
-    if (!mounted) return;
+    setState(() => _game = _game.claimCell(row, col, dummyPlayer));
+  }
 
-    if (player != null) {
-      // Valid pick claims the cell and passes the turn.
-      setState(() => _game = _game.claimCell(row, col, player));
-    } else {
-      // Gave up on the search → forfeit the turn (cell stays open).
-      setState(() => _game = _game.passTurn());
-    }
+  void _onCellLongPressed(int row, int col) {
+    final rowFactor = _game.rows[row];
+    final colFactor = _game.columns[col];
+
+    final matches = _corpus
+        .where((p) => rowFactor.matches(p) && colFactor.matches(p))
+        .map((p) => p.name)
+        .toList()
+      ..sort();
+
+    showDialog(
+      context: context,
+      builder: (context) => _AnswersDialog(
+        rowFactor: rowFactor,
+        colFactor: colFactor,
+        names: matches,
+      ),
+    );
   }
 
   @override
   void initState() {
     super.initState();
-    _repository = widget.repository ?? SqlitePlayerRepository();
     _load();
   }
 
@@ -77,25 +92,33 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
   /// The corpus is fed to board generation so every cell has a real answer.
   ///
   /// If the database can't be opened (e.g. asset unavailable in a test), it
-  /// falls back to the curated [FootballerPool] — the same data the DB is built
-  /// from — so the board still generates and the game stays playable.
+  /// falls back to an empty corpus — the board generator handles this via its
+  /// own internal fallback logic.
   Future<void> _load() async {
     List<Player> corpus;
     try {
       corpus = await PlayerDatabase.instance.loadAllPlayers();
     } catch (_) {
-      corpus = FootballerPool.all;
+      corpus = const [];
     }
     if (!mounted) return;
     setState(() {
       _corpus = corpus;
-      _game = XoxGame.newMatch(players: corpus);
+      _game = XoxGame.newMatch(
+        players: corpus,
+        playerXName: widget.playerXName,
+        playerOName: widget.playerOName,
+      );
       _loading = false;
     });
   }
 
   void _newGame() {
-    setState(() => _game = XoxGame.newMatch(players: _corpus));
+    setState(() => _game = XoxGame.newMatch(
+      players: _corpus,
+      playerXName: widget.playerXName,
+      playerOName: widget.playerOName,
+    ));
   }
 
   @override
@@ -116,7 +139,7 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: _buildBody(),
         ),
       ),
@@ -125,22 +148,34 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingState(message: 'BUILDING YOUR BOARD');
     }
     return Column(
       children: [
-        _StatusBar(game: _game),
-        const SizedBox(height: 16),
+        _StatusBar(
+          game: _game,
+          onPass: () => setState(() => _game = _game.passTurn()),
+        ),
+        const SizedBox(height: AppSpacing.lg),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              return Center(child: _buildBoard(constraints));
+              return Center(
+                child: FadeSlideIn(
+                  // Re-key per match so the entrance replays on "New game".
+                  key: ValueKey(_game.hashCode),
+                  child: _buildBoard(constraints),
+                ),
+              );
             },
           ),
         ),
         if (_game.isOver) ...[
-          const SizedBox(height: 12),
-          _ResultBanner(game: _game, onPlayAgain: _newGame),
+          const SizedBox(height: AppSpacing.md),
+          FadeSlideIn(
+            key: ValueKey('result-${_game.hashCode}'),
+            child: _ResultBanner(game: _game, onPlayAgain: _newGame),
+          ),
         ],
       ],
     );
@@ -188,9 +223,11 @@ class _FootballXoxScreenState extends State<FootballXoxScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(spacing / 2),
                         child: _GridCell(
+                          game: _game,
                           cell: _game.cellAt(r, c),
                           enabled: !_game.isOver,
                           onTap: () => _onCellTapped(r, c),
+                          onLongPress: () => _onCellLongPressed(r, c),
                         ),
                       ),
                     ),
@@ -211,21 +248,22 @@ String _markLabel(Mark mark) => mark == Mark.x ? 'X' : 'O';
 
 /// Turn indicator / score header.
 class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.game});
+  const _StatusBar({required this.game, required this.onPass});
   final XoxGame game;
+  final VoidCallback onPass;
 
   @override
   Widget build(BuildContext context) {
     final String text;
     final Color color;
     if (game.winner != Mark.none) {
-      text = 'PLAYER ${_markLabel(game.winner)} WINS!';
+      text = '${game.nameOf(game.winner).toUpperCase()} WINS!';
       color = _markColor(game.winner);
     } else if (game.isDraw) {
       text = "IT'S A DRAW";
       color = AppColors.whiteMuted;
     } else {
-      text = "PLAYER ${_markLabel(game.current)}'S TURN";
+      text = "${game.currentPlayerName.toUpperCase()}'S TURN";
       color = _markColor(game.current);
     }
 
@@ -233,32 +271,48 @@ class _StatusBar extends StatelessWidget {
       color: AppColors.surface,
       borderColor: color,
       shadowOffset: const Offset(4, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.md),
       child: Row(
         children: [
           // Turn token chip.
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceLow,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: color, width: 2.5),
-            ),
-            child: Text(
-              game.isOver ? '🏁' : _markLabel(game.current),
-              style: AppTheme.heading(18, color: color),
+          SuccessPop(
+            trigger: '${game.current}-${game.isOver}',
+            child: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLow,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                border: Border.all(color: color, width: 2.5),
+              ),
+              child: Text(
+                game.isOver ? '🏁' : _markLabel(game.current),
+                style: AppTheme.headline(color: color),
+              ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(text, style: AppTheme.heading(18, color: color)),
+            child: Text(text, style: AppTheme.headline(color: color)),
           ),
-          Text(
-            '${game.filledCount}/9',
-            style: AppTheme.label(14, color: AppColors.whiteMuted),
-          ),
+          if (!game.isOver)
+            BrutalistButton(
+              onPressed: onPass,
+              expand: false,
+              color: AppColors.surfaceLow,
+              foregroundColor: AppColors.white,
+              borderColor: AppColors.border,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              child: const Text('PAS'),
+            )
+          else
+            Text(
+              '${game.filledCount}/9',
+              style: AppTheme.caption(),
+            ),
         ],
       ),
     );
@@ -278,22 +332,23 @@ class _ResultBanner extends StatelessWidget {
     return BrutalistCard(
       color: AppColors.surface,
       borderColor: color,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
           Expanded(
             child: Text(
               won
-                  ? 'Player ${_markLabel(game.winner)} completed a line!'
+                  ? '${game.nameOf(game.winner)} completed a line!'
                   : 'No more moves — nobody got a line.',
-              style: AppTheme.label(14, color: AppColors.white),
+              style: AppTheme.body(),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           BrutalistButton(
             onPressed: onPlayAgain,
             expand: false,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg, vertical: AppSpacing.md),
             child: const Text('PLAY AGAIN'),
           ),
         ],
@@ -324,28 +379,37 @@ class _HeaderCell extends StatelessWidget {
 /// A single playable grid cell — empty (tappable) or claimed by X/O.
 class _GridCell extends StatelessWidget {
   const _GridCell({
+    required this.game,
     required this.cell,
     required this.enabled,
     required this.onTap,
+    required this.onLongPress,
   });
+  final XoxGame game;
   final XoxCell cell;
   final bool enabled;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final filled = cell.isFilled;
-    final markColor = filled ? _markColor(cell.mark) : AppColors.white;
-    return GestureDetector(
+    final markColor = filled ? _markColor(cell.mark) : AppColors.border;
+    return SpringScale(
+      enabled: !filled && enabled,
       onTap: (filled || !enabled) ? null : onTap,
-      child: BrutalistCard(
-        color: filled ? AppColors.surface : AppColors.surfaceLow,
-        borderColor: filled ? markColor : AppColors.white,
-        shadowOffset: const Offset(3, 3),
-        radius: 12,
-        padding: const EdgeInsets.all(4),
-        alignment: Alignment.center,
-        child: filled ? _claimedContent(cell) : _emptyContent(),
+      onLongPress: onLongPress,
+      child: SuccessPop(
+        trigger: filled ? cell.player?.id : null,
+        child: BrutalistCard(
+          color: filled ? AppColors.surface : AppColors.surfaceLow,
+          borderColor: filled ? markColor : AppColors.border,
+          shadowOffset: const Offset(3, 3),
+          radius: 12,
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          alignment: Alignment.center,
+          child: filled ? _claimedContent(cell) : _emptyContent(),
+        ),
       ),
     );
   }
@@ -355,24 +419,24 @@ class _GridCell extends StatelessWidget {
   }
 
   Widget _claimedContent(XoxCell cell) {
-    final player = cell.player!;
     final markColor = _markColor(cell.mark);
+    final playerName = game.nameOf(cell.mark);
+    final markLabel = _markLabel(cell.mark);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.check_circle_rounded, color: markColor, size: 20),
-        const SizedBox(height: 4),
         Flexible(
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: SizedBox(
               width: 110,
               child: Text(
-                player.name,
+                playerName,
                 textAlign: TextAlign.center,
-                maxLines: 3,
+                maxLines: 2,
                 style: AppTheme.label(
-                  12,
+                  14,
                   color: AppColors.white,
                   weight: FontWeight.w700,
                 ),
@@ -380,7 +444,98 @@ class _GridCell extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 4),
+        Text(
+          markLabel,
+          style: AppTheme.heading(
+            32,
+            color: markColor,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// A dialog that shows all offline valid players for the given [rowFactor] and [colFactor].
+class _AnswersDialog extends StatelessWidget {
+  const _AnswersDialog({
+    required this.rowFactor,
+    required this.colFactor,
+    required this.names,
+  });
+
+  final Factor rowFactor;
+  final Factor colFactor;
+  final List<String> names;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: BrutalistCard(
+        color: AppColors.surfaceHigh,
+        borderColor: AppColors.pitchGreen,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        height: size.height * 0.7,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FactorImage(factor: rowFactor, imageSize: 42),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Text('×', style: TextStyle(color: AppColors.whiteMuted, fontSize: 24, fontWeight: FontWeight.bold)),
+                ),
+                FactorImage(factor: colFactor, imageSize: 42),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              '${names.length} OYUNCU',
+              textAlign: TextAlign.center,
+              style: AppTheme.overline(color: AppColors.pitchGreen),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Expanded(
+              child: names.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'EŞLEŞEN OYUNCU YOK',
+                    )
+                  : ListView.separated(
+                      itemCount: names.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, i) {
+                        return FadeSlideIn(
+                          delay: Duration(milliseconds: 20 * (i % 20)),
+                          duration: AppTheme.durMed,
+                          child: BrutalistCard(
+                            color: AppColors.surfaceLow,
+                            borderColor: AppColors.border,
+                            shadowOffset: Offset.zero,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.md,
+                            ),
+                            child: Text(names[i], style: AppTheme.body()),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            BrutalistButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('KAPAT'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

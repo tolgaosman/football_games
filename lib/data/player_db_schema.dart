@@ -4,7 +4,7 @@
 /// runtime opener ([PlayerDatabase]) so the table/column/index definitions can
 /// never drift apart. Table strings (league / team / nationality / tournament)
 /// MUST match the canonical names in `FactorPool` exactly — the generator reads
-/// them straight from `FootballerPool`, which already uses those names.
+/// them straight from the player database, which already uses those names.
 library;
 
 class PlayerDbSchema {

@@ -17,6 +17,8 @@ class BrutalistCard extends StatelessWidget {
     this.borderWidth = AppTheme.borderWidth,
     this.radius = AppTheme.radius,
     this.shadowOffset = AppTheme.shadowOffset,
+    this.soft = false,
+    this.elevation = 1,
     this.padding,
     this.width,
     this.height,
@@ -30,10 +32,24 @@ class BrutalistCard extends StatelessWidget {
   final double borderWidth;
   final double radius;
   final Offset shadowOffset;
+
+  /// When true the card uses a soft, blurred elevation instead of the hard
+  /// brutalist drop shadow — for quieter, layered surfaces.
+  final bool soft;
+
+  /// Relative depth of the soft elevation (ignored unless [soft] is true).
+  final double elevation;
+
   final EdgeInsetsGeometry? padding;
   final double? width;
   final double? height;
   final AlignmentGeometry? alignment;
+
+  List<BoxShadow>? get _shadow {
+    if (soft) return AppTheme.softShadow(elevation: elevation);
+    if (shadowOffset == Offset.zero) return null;
+    return AppTheme.hardShadow(offset: shadowOffset, color: shadowColor);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,9 +62,7 @@ class BrutalistCard extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: borderColor, width: borderWidth),
-        boxShadow: shadowOffset == Offset.zero
-            ? null
-            : AppTheme.hardShadow(offset: shadowOffset, color: shadowColor),
+        boxShadow: _shadow,
       ),
       child: child,
     );

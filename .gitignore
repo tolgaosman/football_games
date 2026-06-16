@@ -36,6 +36,7 @@ migrate_working_dir/
 # Flyball: optional local secrets (API keys are passed via --dart-define,
 # but if you keep a local launch script with a key, ignore it here).
 *.secret.json
+dart_define.json
 .env
 run_with_key.*
 

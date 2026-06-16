@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
 /// A blocky, satisfying-to-press neo-brutalist button.
 ///
-/// At rest it floats above a hard shadow. On press it translates down/right by
-/// the shadow offset while the shadow shrinks to zero — giving the tactile
-/// "pressed into the page" feel.
+/// At rest it floats above a hard shadow. On press it translates down/right into
+/// the shadow and dips in scale; on release it settles back with a lively spring
+/// — giving the tactile "pressed into the page" feel. A light haptic fires on tap.
 class BrutalistButton extends StatefulWidget {
   const BrutalistButton({
     super.key,
@@ -21,6 +22,7 @@ class BrutalistButton extends StatefulWidget {
     this.radius = AppTheme.radius,
     this.restingOffset = AppTheme.shadowOffset,
     this.expand = true,
+    this.haptics = true,
   });
 
   final VoidCallback? onPressed;
@@ -36,26 +38,46 @@ class BrutalistButton extends StatefulWidget {
   /// When true the button stretches to fill its parent's width.
   final bool expand;
 
+  /// Fire a light selection haptic on tap.
+  final bool haptics;
+
   @override
   State<BrutalistButton> createState() => _BrutalistButtonState();
 }
 
-class _BrutalistButtonState extends State<BrutalistButton> {
-  bool _pressed = false;
+class _BrutalistButtonState extends State<BrutalistButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: AppTheme.durFast,
+    reverseDuration: AppTheme.durMed,
+  );
+
+  late final Animation<double> _press = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOut,
+    reverseCurve: AppTheme.springCurve,
+  );
 
   bool get _enabled => widget.onPressed != null;
 
   void _setPressed(bool value) {
     if (!_enabled) return;
-    setState(() => _pressed = value);
+    if (value) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final offset = _pressed ? Offset.zero : widget.restingOffset;
-    final translation =
-        _pressed ? widget.restingOffset : Offset.zero;
-
     final Color faceColor =
         _enabled ? widget.color : AppColors.pitchGreenDim.withValues(alpha: 0.4);
 
@@ -63,27 +85,50 @@ class _BrutalistButtonState extends State<BrutalistButton> {
       onTapDown: (_) => _setPressed(true),
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),
-      onTap: widget.onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 70),
-        curve: Curves.easeOut,
-        transform: Matrix4.translationValues(translation.dx, translation.dy, 0),
-        width: widget.expand ? double.infinity : null,
-        decoration: BoxDecoration(
-          color: faceColor,
-          borderRadius: BorderRadius.circular(widget.radius),
-          border: Border.all(color: widget.borderColor, width: AppTheme.borderWidth),
-          boxShadow: offset == Offset.zero
-              ? null
-              : AppTheme.hardShadow(offset: offset, color: widget.shadowColor),
-        ),
-        padding: widget.padding,
+      onTap: _enabled
+          ? () {
+              if (widget.haptics) HapticFeedback.selectionClick();
+              widget.onPressed!();
+            }
+          : null,
+      child: AnimatedBuilder(
+        animation: _press,
+        builder: (context, child) {
+          final t = _press.value;
+          final offset = Offset.lerp(widget.restingOffset, Offset.zero, t)!;
+          final translation =
+              Offset.lerp(Offset.zero, widget.restingOffset, t)!;
+          final scale = 1 - 0.03 * t;
+
+          return Transform.translate(
+            offset: translation,
+            child: Transform.scale(
+              scale: scale,
+              child: Container(
+                width: widget.expand ? double.infinity : null,
+                decoration: BoxDecoration(
+                  color: faceColor,
+                  borderRadius: BorderRadius.circular(widget.radius),
+                  border: Border.all(
+                      color: widget.borderColor, width: AppTheme.borderWidth),
+                  boxShadow: offset.distance < 0.5
+                      ? null
+                      : AppTheme.hardShadow(
+                          offset: offset, color: widget.shadowColor),
+                ),
+                padding: widget.padding,
+                child: child,
+              ),
+            ),
+          );
+        },
         child: DefaultTextStyle.merge(
           style: AppTheme.heading(20, color: widget.foregroundColor),
           textAlign: TextAlign.center,
           child: IconTheme.merge(
             data: IconThemeData(color: widget.foregroundColor),
-            child: Center(widthFactor: widget.expand ? null : 1, child: widget.child),
+            child:
+                Center(widthFactor: widget.expand ? null : 1, child: widget.child),
           ),
         ),
       ),

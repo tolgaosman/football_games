@@ -18,12 +18,20 @@ class XoxGame {
     required Set<String> usedPlayerIds,
     required this.winner,
     required this.isDraw,
+    required this.playerXName,
+    required this.playerOName,
   })  : _cells = cells, // ignore: prefer_initializing_formals
         // ignore: prefer_initializing_formals
         _usedPlayerIds = usedPlayerIds;
 
   /// Starts a fresh match with a newly generated, fully-solvable board.
-  factory XoxGame.newMatch({List<Player>? players}) {
+  ///
+  /// [playerXName] and [playerOName] are the display names for the two players.
+  factory XoxGame.newMatch({
+    List<Player>? players,
+    String playerXName = 'Player X',
+    String playerOName = 'Player O',
+  }) {
     final board = FactorPool.generateBoard(null, players);
     return XoxGame._(
       rows: board.rows,
@@ -33,6 +41,8 @@ class XoxGame {
       usedPlayerIds: <String>{},
       winner: Mark.none,
       isDraw: false,
+      playerXName: playerXName,
+      playerOName: playerOName,
     );
   }
 
@@ -40,6 +50,12 @@ class XoxGame {
   final List<Factor> columns;
   final List<XoxCell> _cells;
   final Set<String> _usedPlayerIds;
+
+  /// Display name of the X player.
+  final String playerXName;
+
+  /// Display name of the O player.
+  final String playerOName;
 
   /// Whose turn it is (X or O). [Mark.none] only when the game is over.
   final Mark current;
@@ -49,6 +65,12 @@ class XoxGame {
 
   /// True when the board filled with no winner.
   final bool isDraw;
+
+  /// Returns the display name for the given [mark].
+  String nameOf(Mark mark) => mark == Mark.x ? playerXName : playerOName;
+
+  /// Returns the display name of the player whose turn it is.
+  String get currentPlayerName => nameOf(current);
 
   List<XoxCell> get cells => List.unmodifiable(_cells);
 
@@ -91,6 +113,8 @@ class XoxGame {
       usedPlayerIds: newUsed,
       winner: newWinner,
       isDraw: draw,
+      playerXName: playerXName,
+      playerOName: playerOName,
     );
   }
 
@@ -106,6 +130,8 @@ class XoxGame {
       usedPlayerIds: _usedPlayerIds,
       winner: winner,
       isDraw: isDraw,
+      playerXName: playerXName,
+      playerOName: playerOName,
     );
   }
 
