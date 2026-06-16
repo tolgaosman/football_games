@@ -122,3 +122,31 @@ The cache must stay non-empty or generation can't guarantee solvability.
   containers; pull colours from `AppColors` and text styles from `AppTheme`.
 - Grid/headers must scale to fit common phone sizes without overflow (the XOX
   board uses `LayoutBuilder` + `FittedBox`).
+
+## 🧠 AI Master Skills & Behavioral Constraints
+
+You must strictly adhere to the following 5 Master Skills in every single file edit, component creation, and refactoring task.
+
+### 1. The "Taste" Skill (Aesthetic Supremacy)
+- **Whitespace & Padding:** Prioritize generous, minimalist spacing. Never use cramped or chaotic layouts.
+- **Color Palettes:** Never use raw, default, or oversaturated primary colors. Use carefully curated, organic pastel tones, sophisticated neutrals, and subtle contrasts.
+- **Typography:** Enforce crisp typographical hierarchy. Ensure clear line heights, distinct weights for headings vs. body text, and avoid inconsistent text casings.
+
+### 2. Aesthetic Animations (Micro-interactions)
+- **Transitions:** Implement fluid, organic spring-physics-based animations instead of stiff, linear transitions.
+- **Interactions:** Add delightful entrance animations for new elements and active/press states for touchable components.
+- **Feel:** Integrate subtle haptic feedback patterns or visual feedback (like scale pops) on successful actions.
+
+### 3. Impeccable Execution (Technical Perfection)
+- **Edge Cases:** Always design and code for edge cases, including empty states, error boundaries, and loading indicators.
+- **Performance:** Maintain 60fps rendering performance. Avoid heavy, unnecessary re-renders.
+- **Layout Safety:** Ensure the layout never breaks under arbitrary content length or long dynamic text input.
+
+### 4. Vercel & Anthropic UI/UX Design Language
+- **Esthetics:** Merge the clean, high-contrast, monochrome minimalism of Vercel with the human-centric, warm, and highly functional simplicity of Anthropic.
+- **Clutter-free:** Strip away all visual noise, unnecessary watermark icons, and redundant helper texts. Let the content breathe.
+
+### 5. Flutter & Component Best Practices
+- **Architecture:** Write modular, highly reusable, and strictly typed Flutter widgets.
+- **State Management:** Keep state local whenever possible, use clean architectures, and avoid bloated global state.
+- **Code Hygiene:** Ensure zero linter warnings, clean imports, and descriptive variable naming.
