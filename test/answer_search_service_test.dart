@@ -7,8 +7,7 @@ import 'package:http/testing.dart';
 import 'package:flyball/data/answer_search_service.dart';
 
 /// Wraps [players] in the Gemini `generateContent` response envelope, with the
-/// inner `{"players": [...]}` JSON serialised into the part's `text` field
-/// (Gemini returns the model output as a string even with a JSON mime type).
+/// inner `{"players": [...]}` JSON serialised into the part's `text` field.
 String _geminiResponse(List<String> players) {
   return jsonEncode({
     'candidates': [
@@ -25,8 +24,18 @@ String _geminiResponse(List<String> players) {
   });
 }
 
+/// A client that returns the SAME [players] for BOTH the recall and verify
+/// calls — i.e. the verify pass confirms every recall candidate. Used wherever
+/// the final verified list should equal the model's list.
 http.Client _okClient(List<String> players) {
   return MockClient((_) async => http.Response(_geminiResponse(players), 200));
+}
+
+/// Returns [recall] for the first call and [verify] for the second, so a test
+/// can drive the two-phase flow independently.
+http.Client _twoPhaseClient(http.Response recall, http.Response verify) {
+  var call = 0;
+  return MockClient((_) async => (call++ == 0) ? recall : verify);
 }
 
 /// Wraps an arbitrary [text] string as the model's single text part (used to
@@ -48,15 +57,18 @@ String _rawText(String text) {
 void main() {
   group('AnswerSearchService', () {
     test('parses a well-formed response into a name list', () async {
+      // _okClient answers both phases, so verify echoes recall.
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: _okClient(['Zinedine Zidane', 'Karim Benzema', 'Raphaël Varane']),
       );
-      final names = await service.search(
+      final result = await service.search(
         condition1: 'Real Madrid',
         condition2: 'France',
       );
-      expect(names, ['Zinedine Zidane', 'Karim Benzema', 'Raphaël Varane']);
+      expect(result?.players,
+          ['Zinedine Zidane', 'Karim Benzema', 'Raphaël Varane']);
+      expect(result?.verified, isTrue);
     });
 
     test('returns every name with no upper cap', () async {
@@ -64,37 +76,101 @@ void main() {
         apiKey: 'test-key',
         client: _okClient(['A', 'B', 'C', 'D', 'E', 'F', 'G']),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, ['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['A', 'B', 'C', 'D', 'E', 'F', 'G']);
     });
 
-    test('drops blank names but keeps the valid ones (even fewer than 5)',
-        () async {
+    test('drops blank names but keeps the valid ones', () async {
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: _okClient(['Solo', '', '   ', 'Duo']),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, ['Solo', 'Duo']);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['Solo', 'Duo']);
     });
 
-    test('returns null when no valid names remain', () async {
+    test('makes two calls: recall then verify', () async {
+      final bodies = <String>[];
+      var calls = 0;
       final service = AnswerSearchService(
         apiKey: 'test-key',
-        client: _okClient(['', '   ']),
+        client: MockClient((request) async {
+          calls++;
+          bodies.add(request.body);
+          return http.Response(_geminiResponse(['Steven Gerrard']), 200);
+        }),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, isNull);
+      await service.search(condition1: 'Liverpool', condition2: 'England');
+      expect(calls, 2);
+      // First call is the wide recall prompt.
+      expect(bodies[0], contains('OVER-INCLUDE'));
+      // Second call is the strict verify prompt, carrying the recall candidates.
+      expect(bodies[1], contains('CANDIDATES:'));
+      expect(bodies[1], contains('Steven Gerrard'));
+    });
+
+    test('verify narrows the recall list', () async {
+      final service = AnswerSearchService(
+        apiKey: 'test-key',
+        client: _twoPhaseClient(
+          http.Response(_geminiResponse(['A', 'B', 'C', 'D']), 200),
+          http.Response(_geminiResponse(['A', 'C']), 200),
+        ),
+      );
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['A', 'C']);
+      expect(result?.verified, isTrue);
+    });
+
+    test('returns null and skips verify when recall fails', () async {
+      var calls = 0;
+      final service = AnswerSearchService(
+        apiKey: 'test-key',
+        client: MockClient((_) async {
+          calls++;
+          return http.Response('nope', 500);
+        }),
+      );
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
+      // Verify must NOT run when there are no candidates.
+      expect(calls, 1);
+    });
+
+    test('returns the unverified recall list when verify fails', () async {
+      final service = AnswerSearchService(
+        apiKey: 'test-key',
+        client: _twoPhaseClient(
+          http.Response(_geminiResponse(['A', 'B', 'C']), 200),
+          http.Response('boom', 500),
+        ),
+      );
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['A', 'B', 'C']);
+      expect(result?.verified, isFalse);
+    });
+
+    test('returns null when verify rejects every candidate', () async {
+      final service = AnswerSearchService(
+        apiKey: 'test-key',
+        client: _twoPhaseClient(
+          http.Response(_geminiResponse(['A', 'B']), 200),
+          http.Response(_geminiResponse(const []), 200),
+        ),
+      );
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
     });
 
     test('extracts JSON from a markdown code fence', () async {
-      final fenced = '```json\n{"players": ["Steven Gerrard", "Jamie Carragher"]}\n```';
+      final fenced =
+          '```json\n{"players": ["Steven Gerrard", "Jamie Carragher"]}\n```';
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: MockClient((_) async => http.Response(_rawText(fenced), 200)),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, ['Steven Gerrard', 'Jamie Carragher']);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['Steven Gerrard', 'Jamie Carragher']);
     });
 
     test('extracts JSON from surrounding prose', () async {
@@ -104,8 +180,8 @@ void main() {
         apiKey: 'test-key',
         client: MockClient((_) async => http.Response(_rawText(prose), 200)),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, ['James Milner']);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['James Milner']);
     });
 
     test('stitches text across multiple parts', () async {
@@ -125,40 +201,41 @@ void main() {
         apiKey: 'test-key',
         client: MockClient((_) async => http.Response(body, 200)),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, ['Philippe Coutinho', 'Christian Benteke']);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result?.players, ['Philippe Coutinho', 'Christian Benteke']);
     });
 
-    test('sends a Google Search grounding tool in the request', () async {
-      String? sentBody;
+    test('sends a Google Search grounding tool on both calls', () async {
+      final bodies = <String>[];
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: MockClient((request) async {
-          sentBody = request.body;
+          bodies.add(request.body);
           return http.Response(_geminiResponse(['A', 'B', 'C']), 200);
         }),
       );
       await service.search(condition1: 'X', condition2: 'Y');
-      expect(sentBody, contains('google_search'));
+      expect(bodies, isNotEmpty);
+      expect(bodies.every((b) => b.contains('google_search')), isTrue);
     });
 
-    test('sends a low thinking budget in the request', () async {
-      String? sentBody;
+    test('sends a thinking budget on both calls', () async {
+      final bodies = <String>[];
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: MockClient((request) async {
-          sentBody = request.body;
+          bodies.add(request.body);
           return http.Response(_geminiResponse(['A', 'B', 'C']), 200);
         }),
       );
       await service.search(condition1: 'X', condition2: 'Y');
-      expect(sentBody, contains('thinkingBudget'));
+      expect(bodies.every((b) => b.contains('thinkingBudget')), isTrue);
     });
 
-    test('returns null on a truncated (MAX_TOKENS) response', () async {
-      // The model hit the token limit mid-answer; even though the partial text
-      // contains a parseable single-name object, we must discard it so the
-      // caller falls back instead of showing a clipped list.
+    test('returns null when the recall response is truncated (MAX_TOKENS)',
+        () async {
+      // The recall call hit the token limit mid-answer; we must discard it so
+      // the caller falls back instead of verifying a clipped list.
       final body = jsonEncode({
         'candidates': [
           {
@@ -179,26 +256,26 @@ void main() {
         apiKey: 'test-key',
         client: MockClient((_) async => http.Response(body, 200)),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, isNull);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
     });
 
-    test('returns null on a non-200 response', () async {
+    test('returns null on a non-200 recall response', () async {
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: MockClient((_) async => http.Response('nope', 500)),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, isNull);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
     });
 
-    test('returns null on a malformed body', () async {
+    test('returns null on a malformed recall body', () async {
       final service = AnswerSearchService(
         apiKey: 'test-key',
         client: MockClient((_) async => http.Response('not json', 200)),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, isNull);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
     });
 
     test('returns null when the players key is missing', () async {
@@ -221,8 +298,8 @@ void main() {
           return http.Response(body, 200);
         }),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, isNull);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
     });
 
     test('returns null and makes no request when the key is empty', () async {
@@ -234,8 +311,8 @@ void main() {
           return http.Response(_geminiResponse(['A', 'B', 'C']), 200);
         }),
       );
-      final names = await service.search(condition1: 'X', condition2: 'Y');
-      expect(names, isNull);
+      final result = await service.search(condition1: 'X', condition2: 'Y');
+      expect(result, isNull);
       expect(called, isFalse);
     });
   });

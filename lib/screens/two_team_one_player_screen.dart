@@ -440,7 +440,7 @@ class _AnswersDialog extends StatefulWidget {
 
   final String teamA;
   final String teamB;
-  final Future<List<String>?> search;
+  final Future<AnswerResult?> search;
   final List<String> fallback;
 
   @override
@@ -450,6 +450,10 @@ class _AnswersDialog extends StatefulWidget {
 class _AnswersDialogState extends State<_AnswersDialog> {
   bool _loading = true;
   late List<String> _names;
+
+  /// Whether the shown list was fact-checked. The local [fallback] corpus is
+  /// trusted, so it counts as verified; only an unverified live result is false.
+  bool _verified = true;
 
   @override
   void initState() {
@@ -462,7 +466,8 @@ class _AnswersDialogState extends State<_AnswersDialog> {
     final live = await widget.search;
     if (!mounted) return;
     setState(() {
-      _names = live ?? widget.fallback;
+      _names = live?.players ?? widget.fallback;
+      _verified = live?.verified ?? true;
       _loading = false;
     });
   }
@@ -492,6 +497,14 @@ class _AnswersDialogState extends State<_AnswersDialog> {
               textAlign: TextAlign.center,
               style: AppTheme.overline(color: AppColors.pitchGreen),
             ),
+            if (!_loading && _names.isNotEmpty && !_verified) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '⚠ DOĞRULANMADI — KONTROL EDİLMEDİ',
+                textAlign: TextAlign.center,
+                style: AppTheme.overline(color: AppColors.danger),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: _loading

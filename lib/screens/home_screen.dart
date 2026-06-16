@@ -79,6 +79,9 @@ class HomeScreen extends StatelessWidget {
       _GameButton(
         label: 'FOOTBALL XOX',
         icon: Icons.grid_3x3_rounded,
+        color: AppColors.surface,
+        foregroundColor: AppColors.white,
+        borderColor: AppColors.pitchGreen,
         onPressed: () async {
           final result = await Navigator.of(context)
               .pushNamed(AppRoutes.footballXoxLobby);
@@ -98,15 +101,7 @@ class HomeScreen extends StatelessWidget {
         onPressed: () =>
             Navigator.of(context).pushNamed(AppRoutes.twoTeamOnePlayer),
       ),
-      _GameButton(
-        label: 'FOOTBALLDLE',
-        icon: Icons.abc_rounded,
-        color: AppColors.surface,
-        foregroundColor: AppColors.white,
-        borderColor: AppColors.pitchGreen,
-        onPressed: () =>
-            Navigator.of(context).pushNamed(AppRoutes.footballdle),
-      ),
+
       _GameButton(
         label: '1 TEAM 1 COUNTRY',
         icon: Icons.public_rounded,
