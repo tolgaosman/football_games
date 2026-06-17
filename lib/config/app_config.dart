@@ -20,23 +20,24 @@ class AppConfig {
     defaultValue: 'http://localhost:8000',
   );
 
-  /// Google Gemini API key used by [AnswerSearchService] to fetch live
-  /// reference answers for the party games. Provide it via:
+  /// Base URL of the **answer-search proxy** used by [AnswerSearchService] to
+  /// fetch live reference answers for the party games.
+  ///
+  /// This is NOT a secret — it is a public HTTPS endpoint that holds the Gemini
+  /// API key server-side, so the key is never compiled into the app binary (where
+  /// it could be extracted with `strings`). Provide it via:
   ///
   /// ```
-  /// flutter run --dart-define=GEMINI_API_KEY=<your-key>
+  /// flutter run --dart-define=PROXY_BASE_URL=https://your-proxy.example.com
   /// ```
   ///
-  /// When empty, the party games fall back to the offline local corpus.
-  ///
-  /// NOTE: a `--dart-define` key is compiled into the binary and can be
-  /// extracted — fine for local/personal dev, but a public release should move
-  /// the key behind a proxy server.
-  static const String geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
+  /// When empty (no proxy configured), the party games fall back to the offline
+  /// local corpus.
+  static const String proxyBaseUrl = String.fromEnvironment(
+    'PROXY_BASE_URL',
     defaultValue: '',
   );
 
-  /// Whether a Gemini API key is configured.
-  static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
+  /// Whether an answer-search proxy is configured.
+  static bool get hasAnswerProxy => proxyBaseUrl.isNotEmpty;
 }

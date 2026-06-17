@@ -59,7 +59,7 @@ void main() {
     test('parses a well-formed response into a name list', () async {
       // _okClient answers both phases, so verify echoes recall.
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: _okClient(['Zinedine Zidane', 'Karim Benzema', 'Raphaël Varane']),
       );
       final result = await service.search(
@@ -73,7 +73,7 @@ void main() {
 
     test('returns every name with no upper cap', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: _okClient(['A', 'B', 'C', 'D', 'E', 'F', 'G']),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -82,7 +82,7 @@ void main() {
 
     test('drops blank names but keeps the valid ones', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: _okClient(['Solo', '', '   ', 'Duo']),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -93,7 +93,7 @@ void main() {
       final bodies = <String>[];
       var calls = 0;
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((request) async {
           calls++;
           bodies.add(request.body);
@@ -111,7 +111,7 @@ void main() {
 
     test('verify narrows the recall list', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: _twoPhaseClient(
           http.Response(_geminiResponse(['A', 'B', 'C', 'D']), 200),
           http.Response(_geminiResponse(['A', 'C']), 200),
@@ -125,7 +125,7 @@ void main() {
     test('returns null and skips verify when recall fails', () async {
       var calls = 0;
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async {
           calls++;
           return http.Response('nope', 500);
@@ -139,7 +139,7 @@ void main() {
 
     test('returns the unverified recall list when verify fails', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: _twoPhaseClient(
           http.Response(_geminiResponse(['A', 'B', 'C']), 200),
           http.Response('boom', 500),
@@ -152,7 +152,7 @@ void main() {
 
     test('returns null when verify rejects every candidate', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: _twoPhaseClient(
           http.Response(_geminiResponse(['A', 'B']), 200),
           http.Response(_geminiResponse(const []), 200),
@@ -166,7 +166,7 @@ void main() {
       final fenced =
           '```json\n{"players": ["Steven Gerrard", "Jamie Carragher"]}\n```';
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async => http.Response(_rawText(fenced), 200)),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -177,7 +177,7 @@ void main() {
       final prose =
           'Here are the players I found: {"players": ["James Milner"]} -- hope it helps!';
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async => http.Response(_rawText(prose), 200)),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -198,31 +198,35 @@ void main() {
         ],
       });
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async => http.Response(body, 200)),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
       expect(result?.players, ['Philippe Coutinho', 'Christian Benteke']);
     });
 
-    test('sends a Google Search grounding tool on both calls', () async {
-      final bodies = <String>[];
+    test('posts to the proxy /answers endpoint, never to Gemini directly',
+        () async {
+      final urls = <String>[];
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((request) async {
-          bodies.add(request.body);
+          urls.add(request.url.toString());
           return http.Response(_geminiResponse(['A', 'B', 'C']), 200);
         }),
       );
       await service.search(condition1: 'X', condition2: 'Y');
-      expect(bodies, isNotEmpty);
-      expect(bodies.every((b) => b.contains('google_search')), isTrue);
+      expect(urls, isNotEmpty);
+      // The Gemini key/URL live only on the proxy: the app must hit the proxy
+      // and must never call generativelanguage.googleapis.com itself.
+      expect(urls.every((u) => u == 'https://proxy.test/answers'), isTrue);
+      expect(urls.any((u) => u.contains('googleapis.com')), isFalse);
     });
 
     test('sends a thinking budget on both calls', () async {
       final bodies = <String>[];
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((request) async {
           bodies.add(request.body);
           return http.Response(_geminiResponse(['A', 'B', 'C']), 200);
@@ -253,7 +257,7 @@ void main() {
         ],
       });
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async => http.Response(body, 200)),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -262,7 +266,7 @@ void main() {
 
     test('returns null on a non-200 recall response', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async => http.Response('nope', 500)),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -271,7 +275,7 @@ void main() {
 
     test('returns null on a malformed recall body', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async => http.Response('not json', 200)),
       );
       final result = await service.search(condition1: 'X', condition2: 'Y');
@@ -280,7 +284,7 @@ void main() {
 
     test('returns null when the players key is missing', () async {
       final service = AnswerSearchService(
-        apiKey: 'test-key',
+        proxyBaseUrl: 'https://proxy.test',
         client: MockClient((_) async {
           final body = jsonEncode({
             'candidates': [
@@ -302,10 +306,11 @@ void main() {
       expect(result, isNull);
     });
 
-    test('returns null and makes no request when the key is empty', () async {
+    test('returns null and makes no request when no proxy is configured',
+        () async {
       var called = false;
       final service = AnswerSearchService(
-        apiKey: '',
+        proxyBaseUrl: '',
         client: MockClient((_) async {
           called = true;
           return http.Response(_geminiResponse(['A', 'B', 'C']), 200);

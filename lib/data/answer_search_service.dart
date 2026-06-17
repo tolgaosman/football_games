@@ -37,19 +37,26 @@ class AnswerResult {
 ///
 /// This supplements the finite on-device corpus: the screens call it when
 /// revealing answers and fall back to the local corpus when it returns `null`
-/// (no key, no network, timeout, or an unparseable recall response).
+/// (no proxy configured, no network, timeout, or an unparseable recall
+/// response).
+///
+/// SECURITY: this talks to a small **backend proxy** ([AppConfig.proxyBaseUrl]),
+/// never to Gemini directly. The Gemini API key lives only on the proxy, so it
+/// is never compiled into the app binary where it could be extracted. The proxy
+/// is a thin pass-through: the app sends a prompt plus thinking/output budgets,
+/// the proxy injects the key + Google Search tool and returns Gemini's response
+/// body verbatim (so the parsing below is unchanged).
 ///
 /// No caching — every reveal triggers a fresh request. All failures are
 /// swallowed and surfaced as `null`; this never throws to the UI.
 class AnswerSearchService {
-  AnswerSearchService({http.Client? client, String? apiKey})
+  AnswerSearchService({http.Client? client, String? proxyBaseUrl})
       : _client = client ?? http.Client(),
-        _apiKey = apiKey ?? AppConfig.geminiApiKey;
+        _proxyBaseUrl = proxyBaseUrl ?? AppConfig.proxyBaseUrl;
 
   final http.Client _client;
-  final String _apiKey;
+  final String _proxyBaseUrl;
 
-  static const _model = 'gemini-2.5-flash';
   static const _timeout = Duration(seconds: 15);
 
   /// Returns the players satisfying BOTH [condition1] and [condition2], or
@@ -62,7 +69,7 @@ class AnswerSearchService {
     required String condition1,
     required String condition2,
   }) async {
-    if (_apiKey.isEmpty) return null;
+    if (_proxyBaseUrl.isEmpty) return null;
 
     // PHASE 1 — RECALL: cast a wide net. `null` (transport/parse failure) or an
     // empty list (model found nobody) both mean we have nothing to verify, so
@@ -117,57 +124,39 @@ class AnswerSearchService {
     );
   }
 
-  /// Runs one grounded `generateContent` call with [prompt] and the given
-  /// thinking/output budgets, returning the parsed player names or `null` on any
-  /// failure (non-200, timeout, malformed/empty/MAX_TOKENS body, exception).
+  /// Runs one grounded answer search with [prompt] and the given thinking/output
+  /// budgets, returning the parsed player names or `null` on any failure (non-200,
+  /// timeout, malformed/empty/MAX_TOKENS body, exception).
   ///
-  /// Shared by both phases so request building, the Google Search tool, the
-  /// api-key header, the [_timeout] and the `MAX_TOKENS` guard live in one place.
+  /// The request goes to the backend proxy (`POST $proxyBaseUrl/answers`), which
+  /// holds the Gemini key, attaches the Google Search grounding tool, and returns
+  /// Gemini's response body verbatim. Keeping the key server-side is what stops it
+  /// being extracted from the app binary. Shared by both phases so request
+  /// building, the [_timeout] and the `MAX_TOKENS` guard live in one place.
   Future<List<String>?> _postPrompt(
     String prompt, {
     required int thinkingBudget,
     required int maxOutputTokens,
   }) async {
-    final uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/'
-      '$_model:generateContent',
-    );
+    // Trim a trailing slash so '$base/answers' is well-formed for either form.
+    final base = _proxyBaseUrl.endsWith('/')
+        ? _proxyBaseUrl.substring(0, _proxyBaseUrl.length - 1)
+        : _proxyBaseUrl;
+    final uri = Uri.parse('$base/answers');
 
-    // Google Search grounding lets the model cross-check real transfer/career
-    // data instead of relying on memory alone. NOTE: `responseMimeType:
-    // application/json` cannot be combined with the search tool, so we drop it
-    // and parse JSON out of the free-text response.
+    // The proxy injects the Gemini URL/key and the Google Search grounding tool;
+    // we only send the prompt plus the per-phase thinking/output budgets.
     final body = jsonEncode({
-      'contents': [
-        {
-          'parts': [
-            {'text': prompt},
-          ],
-        },
-      ],
-      'tools': [
-        {'google_search': <String, dynamic>{}},
-      ],
-      'generationConfig': {
-        'temperature': 0.2,
-        // gemini-2.5-flash is a hybrid "thinking" model whose hidden reasoning
-        // tokens share the output budget. We cap thinking per phase so it never
-        // starves the visible answer (the cause of truncated, single-name lists).
-        'thinkingConfig': {'thinkingBudget': thinkingBudget},
-        'maxOutputTokens': maxOutputTokens,
-      },
+      'prompt': prompt,
+      'thinkingBudget': thinkingBudget,
+      'maxOutputTokens': maxOutputTokens,
     });
 
     try {
-      // The key is sent via the `x-goog-api-key` header, which works for both
-      // the classic `AIza...` API keys and the newer `AQ.` auth keys.
       final res = await _client
           .post(
             uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': _apiKey,
-            },
+            headers: {'Content-Type': 'application/json'},
             body: body,
           )
           .timeout(_timeout);

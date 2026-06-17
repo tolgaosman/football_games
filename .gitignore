@@ -40,6 +40,11 @@ dart_define.json
 .env
 run_with_key.*
 
+# Android release signing — keystore + credentials must never be committed.
+/android/key.properties
+*.jks
+*.keystore
+
 # Symbolication related
 app.*.symbols
 

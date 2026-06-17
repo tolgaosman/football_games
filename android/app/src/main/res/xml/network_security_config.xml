@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Production traffic is HTTPS-only: cleartext is disabled by default, so the
+  answer-search proxy and flagcdn.com must use https. The only exception is the
+  self-hosted Transfermarkt dev service, which runs over plain http on the local
+  loopback / Android-emulator host alias. Those domains are unreachable from a
+  real device in production, so permitting cleartext for them costs nothing.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- Android emulator alias for the host machine's localhost. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
