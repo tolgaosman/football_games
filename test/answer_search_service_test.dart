@@ -306,6 +306,54 @@ void main() {
       expect(result, isNull);
     });
 
+    test('merges the local corpus into a verified live result, live first',
+        () async {
+      // Live confirms [Sabitzer]; the on-device corpus also knows [Šeško].
+      // Both must show, with the live name first and no duplicates.
+      final service = AnswerSearchService(
+        proxyBaseUrl: 'https://proxy.test',
+        client: _okClient(['Sabitzer']),
+      );
+      final result = await service.search(
+        condition1: 'RB Leipzig',
+        condition2: 'Manchester United',
+        localCorpus: ['Šeško', 'Sabitzer'], // 'Sabitzer' overlaps -> deduped
+      );
+      expect(result?.players, ['Sabitzer', 'Šeško']);
+      expect(result?.verified, isTrue);
+    });
+
+    test('de-duplicates the merge case-insensitively', () async {
+      final service = AnswerSearchService(
+        proxyBaseUrl: 'https://proxy.test',
+        client: _okClient(['Erling Haaland']),
+      );
+      final result = await service.search(
+        condition1: 'X',
+        condition2: 'Y',
+        localCorpus: ['erling haaland', 'Phil Foden'],
+      );
+      expect(result?.players, ['Erling Haaland', 'Phil Foden']);
+    });
+
+    test('merges the local corpus into an UNVERIFIED (verify-failed) result',
+        () async {
+      final service = AnswerSearchService(
+        proxyBaseUrl: 'https://proxy.test',
+        client: _twoPhaseClient(
+          http.Response(_geminiResponse(['A', 'B']), 200),
+          http.Response('boom', 500), // verify call fails -> unverified recall
+        ),
+      );
+      final result = await service.search(
+        condition1: 'X',
+        condition2: 'Y',
+        localCorpus: ['B', 'C'], // 'B' overlaps -> deduped
+      );
+      expect(result?.players, ['A', 'B', 'C']);
+      expect(result?.verified, isFalse);
+    });
+
     test('returns null and makes no request when no proxy is configured',
         () async {
       var called = false;

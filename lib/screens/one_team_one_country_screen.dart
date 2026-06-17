@@ -178,7 +178,11 @@ class _OneTeamOneCountryScreenState extends State<OneTeamOneCountryScreen> {
       builder: (context) => _AnswersDialog(
         team: _team,
         country: _country,
-        search: _answerSearch.search(condition1: _team, condition2: _country),
+        search: _answerSearch.search(
+          condition1: _team,
+          condition2: _country,
+          localCorpus: fallback,
+        ),
         fallback: fallback,
       ),
     );

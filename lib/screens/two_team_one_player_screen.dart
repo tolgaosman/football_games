@@ -177,7 +177,11 @@ class _TwoTeamOnePlayerScreenState extends State<TwoTeamOnePlayerScreen> {
       builder: (context) => _AnswersDialog(
         teamA: _teamA,
         teamB: _teamB,
-        search: _answerSearch.search(condition1: _teamA, condition2: _teamB),
+        search: _answerSearch.search(
+          condition1: _teamA,
+          condition2: _teamB,
+          localCorpus: fallback,
+        ),
         fallback: fallback,
       ),
     );

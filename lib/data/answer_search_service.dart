@@ -62,12 +62,18 @@ class AnswerSearchService {
   /// Returns the players satisfying BOTH [condition1] and [condition2], or
   /// `null` on a recall failure (caller uses the local fallback).
   ///
+  /// [localCorpus] is the caller's on-device answer list for this round. Any
+  /// successful live result is MERGED with it (de-duplicated, live names first)
+  /// so a correct on-device answer is never lost just because the model missed
+  /// it. Pass `const []` to disable merging.
+  ///
   /// NOTE: this makes TWO sequential Gemini calls (recall, then verify), so the
   /// worst-case latency is ~2× a single call (each capped at [_timeout]). The
   /// answers dialog shows a spinner for the whole future, so this is acceptable.
   Future<AnswerResult?> search({
     required String condition1,
     required String condition2,
+    List<String> localCorpus = const [],
   }) async {
     if (_proxyBaseUrl.isEmpty) return null;
 
@@ -77,26 +83,43 @@ class AnswerSearchService {
     final candidates = await _recall(condition1, condition2);
     if (candidates == null || candidates.isEmpty) return null;
 
-    // PHASE 2 — VERIFY: strictly confirm each candidate against grounded
-    // sources.
+    // PHASE 2 — VERIFY: confirm each candidate against grounded sources
+    // (coverage-first — keeps anything it can't positively rule out).
     final verified = await _verify(candidates, condition1, condition2);
 
-    // A non-empty verified list is the clean, fact-checked result.
+    // A non-empty verified list is the clean, fact-checked result. Merge in the
+    // on-device corpus so trusted local answers are never dropped.
     if (verified != null && verified.isNotEmpty) {
-      return AnswerResult(verified, verified: true);
+      return AnswerResult(_mergeUnique(verified, localCorpus), verified: true);
     }
 
     // An EMPTY (but successful) verify response means the model rejected every
     // candidate — none could be confirmed for both conditions. Surfacing the
-    // unverified recall list here would defeat the zero-hallucination goal, so
-    // fall back to the curated local corpus instead.
+    // unverified recall list here would defeat the goal, so fall back to the
+    // curated local corpus instead.
     if (verified != null) return null;
 
     // `verified == null` means the verification CALL itself failed
     // (network/timeout/parse). Per product decision we still surface the broad
     // recall list for maximum coverage, but flag it UNVERIFIED so the UI can
-    // warn that these names were not fact-checked.
-    return AnswerResult(candidates, verified: false);
+    // warn that these names were not fact-checked. Still merge the trusted local
+    // corpus in for coverage.
+    return AnswerResult(_mergeUnique(candidates, localCorpus), verified: false);
+  }
+
+  /// Merges [live] with [local], preserving order (live names first, then any
+  /// local name not already present), de-duplicated case-insensitively on the
+  /// trimmed name. Used so an on-device answer is never lost when the live
+  /// search misses it.
+  static List<String> _mergeUnique(List<String> live, List<String> local) {
+    final seen = <String>{};
+    final merged = <String>[];
+    for (final name in [...live, ...local]) {
+      final trimmed = name.trim();
+      if (trimmed.isEmpty) continue;
+      if (seen.add(trimmed.toLowerCase())) merged.add(trimmed);
+    }
+    return merged;
   }
 
   /// PHASE 1: a generous candidate list. Lower thinking (brainstorming is
@@ -191,6 +214,12 @@ class AnswerSearchService {
         '- Do NOT filter, drop, or self-censor names at this stage. A separate '
         'verification step will remove the wrong ones later, so it is far better '
         'to list a borderline name than to omit a correct one.\n'
+        '- INCLUDE the most recent season\'s transfers, brand-new signings and '
+        'loan moves (e.g. a 2025 summer transfer). Recent arrivals are a common '
+        'source of missed answers, so make a point of covering them.\n'
+        '- Treat club name variants as the SAME club: "Leipzig" = "RB Leipzig", '
+        '"Man United"/"Man Utd" = "Manchester United", "Inter" = "Internazionale", '
+        'etc. Search under every common form of the name.\n'
         '- Only requirement: each name must be a real footballer who plausibly '
         'has some connection to BOTH conditions. Do not invent people.\n'
         '- A condition naming a tournament (e.g. "Champions League", "World '
@@ -199,8 +228,11 @@ class AnswerSearchService {
         'exactly this shape: {"players": ["Full Name", "Full Name"]}.';
   }
 
-  /// PHASE 2 prompt — strict verification. Takes the recall [candidates] as
-  /// input and keeps only the names confirmed for BOTH conditions.
+  /// PHASE 2 prompt — coverage-first verification. Takes the recall [candidates]
+  /// and keeps every name with a plausible link to BOTH conditions, dropping ONLY
+  /// the ones it can positively rule out. This deliberately favours recall: it is
+  /// far better to keep a borderline-correct name (e.g. a fresh transfer like
+  /// Šeško) than to drop it for lack of a confirming source.
   String _verifyPrompt(
     List<String> candidates,
     String condition1,
@@ -209,19 +241,26 @@ class AnswerSearchService {
     // Encode the candidate list as a JSON array so it is unambiguous to the
     // model and impossible to confuse with prose.
     final list = jsonEncode(candidates);
-    return 'Act as a strict football fact-checker. Below is a CANDIDATE list of '
-        'footballers. For EACH name, use WEB SEARCH to confirm whether that '
-        'exact player genuinely satisfies BOTH conditions:\n'
+    return 'Act as a football fact-checker whose PRIORITY IS COVERAGE. Below is a '
+        'CANDIDATE list of footballers. For EACH name, use WEB SEARCH to assess '
+        'whether that player plausibly satisfies BOTH conditions:\n'
         '1. "$condition1"\n'
         '2. "$condition2"\n\n'
         'CANDIDATES: $list\n\n'
         'RULES:\n'
-        '- KEEP a name ONLY if sources confirm a real competitive spell for '
-        'BOTH conditions (not a rumour, a loan that fell through, a youth-only '
-        'stint, or a different player with a similar name).\n'
-        '- DROP every name you cannot confirm for BOTH. When in doubt, leave it '
-        'out — accuracy matters more than length, and the list must contain ZERO '
-        'wrong names.\n'
+        '- KEEP a name if sources show a REASONABLE, LIKELY link to BOTH '
+        'conditions — an actual spell, an announced/completed transfer, or a '
+        'loan. You do NOT need ironclad proof; a credible connection is enough.\n'
+        '- DROP a name ONLY when you can POSITIVELY rule it out — it is clearly a '
+        'different player with a similar name, a transfer that never happened, or '
+        'someone with no real connection to one of the conditions. When genuinely '
+        'unsure, KEEP it.\n'
+        '- Treat club name variants as the SAME club: "Leipzig" = "RB Leipzig", '
+        '"Man United"/"Man Utd" = "Manchester United", "Inter" = "Internazionale", '
+        'etc. Never drop a name over a naming difference.\n'
+        '- Count the MOST RECENT season\'s transfers, new signings and loans as '
+        'valid (e.g. a 2025 summer move). Do not drop a player just because the '
+        'move is recent.\n'
         '- Do NOT add any new names that are not in the candidate list.\n'
         '- A condition naming a tournament (e.g. "Champions League", "World '
         'Cup") means the player WON it.\n'
